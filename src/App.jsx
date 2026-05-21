@@ -111,6 +111,10 @@ export default function App() {
   const [showBase64Modal,      setShowBase64Modal]      = useState(false);
   const [targetPreloadAlbumId, setTargetPreloadAlbumId] = useState('');
   const [rawBase64Input,       setRawBase64Input]       = useState('');
+  const [showBackupModal,      setShowBackupModal]      = useState(false);
+  const [backupCode,           setBackupCode]           = useState('');
+  const [backupAlbumName,      setBackupAlbumName]      = useState('');
+  const [copyDone,             setCopyDone]             = useState(false);
   const [states,               setStates]               = useState({});
   const [filter,               setFilter]               = useState("all");
   const [activeSection,        setActiveSection]        = useState(null);
@@ -261,6 +265,25 @@ export default function App() {
     setTargetPreloadAlbumId(albumId); setRawBase64Input(''); setShowBase64Modal(true);
   };
 
+  const handleExportBackup = async (albumId, albumName) => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('stickers').select('sticker_id, state').eq('album_id', albumId);
+      const dict = {};
+      if (data) data.forEach(r => { if (r.state > 0) dict[r.sticker_id] = r.state; });
+      const code = btoa(JSON.stringify(dict));
+      setBackupCode(code);
+      setBackupAlbumName(albumName);
+      setCopyDone(false);
+      setShowBackupModal(true);
+    } catch(e) {
+      console.error(e); alert("Error al generar backup.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggle = useCallback(async (id) => {
     if (!activeAlbumId) return;
     const cur = states[id] ?? 0;
@@ -371,9 +394,36 @@ export default function App() {
     <div style={APP_FONT} className="select-none">
       <div id="app-frame" className="mx-auto">
 
-        {/* Modal Base64 */}
-        {showBase64Modal && (
+        {/* Modal Backup Export */}
+        {showBackupModal && (
           <div className="bg-slate-900/60 fixed inset-0 z-[60] flex items-center justify-center px-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl text-slate-800">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-1">⬇ Backup — {backupAlbumName}</h3>
+              <p className="text-[11px] text-slate-400 mb-3">Toca el campo, selecciona todo y copia el código. Guárdalo en Notas.</p>
+              <textarea readOnly value={backupCode}
+                onFocus={e => e.target.select()} onClick={e => e.target.select()}
+                rows={5}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-[10px] font-mono outline-none resize-none placeholder-slate-300 text-emerald-700"/>
+              <div className="flex gap-2 mt-3">
+                <button onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(backupCode);
+                    setCopyDone(true); setTimeout(() => setCopyDone(false), 3000);
+                  } catch {
+                    document.querySelector('#backup-export-ta')?.select();
+                  }
+                }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${copyDone ? "bg-emerald-500 text-white" : "bg-slate-900 text-white"}`}>
+                  {copyDone ? "✓ Copiado" : "Copiar al portapapeles"}
+                </button>
+                <button onClick={() => setShowBackupModal(false)} className="px-4 py-2.5 rounded-xl text-slate-400 font-bold text-sm">Cerrar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Base64 Import */}
+        {showBase64Modal && (
+          <div className="bg-slate-900/60 fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl text-slate-800">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-1">⚡ Importar Backup</h3>
               <p className="text-[11px] text-slate-400 mb-4">Pega tu código Base64 para cargar este álbum.</p>
@@ -422,6 +472,7 @@ export default function App() {
                         {isSelected && <span className="bg-emerald-500 text-white font-bold text-[8px] uppercase px-1.5 py-0.5 rounded shrink-0">Activo</span>}
                       </div>
                       <div className="flex gap-1.5 shrink-0">
+                        <button onClick={() => handleExportBackup(a.id, a.name)} className="bg-emerald-50 text-emerald-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">⬇ Backup</button>
                         <button onClick={() => triggerBase64Popup(a.id)} className="bg-blue-50 text-blue-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">⚡ Import</button>
                         <button onClick={() => handleDeleteAlbum(a.id, a.name)} className="bg-red-50 text-red-600 font-bold text-[10px] px-2.5 py-1.5 rounded-lg">🗑️</button>
                       </div>

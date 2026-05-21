@@ -373,7 +373,7 @@ export default function App() {
 
         {/* Modal Base64 */}
         {showBase64Modal && (
-          <div className="bg-slate-900/60 fixed inset-0 z-[60] flex items-center justify-center px-4 backdrop-blur-sm">
+          <div className="bg-slate-900/60 fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl text-slate-800">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-1">⚡ Importar Backup</h3>
               <p className="text-[11px] text-slate-400 mb-4">Pega tu código Base64 para cargar este álbum.</p>
@@ -630,6 +630,7 @@ export default function App() {
         {/* Overview Home */}
         {!activeSection && !showGlobalStats && showShare !== "missing" && showShare !== "repeat" && (
           <div className="min-h-screen bg-slate-50">
+            {/* Top bar */}
             <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <select value={activeAlbumId} onChange={e => setActiveAlbumId(e.target.value)}
@@ -638,69 +639,146 @@ export default function App() {
                 </select>
                 <button onClick={() => setShowAlbumManager(true)} className="bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg font-bold">⚙️ Administrar</button>
               </div>
-              <button onClick={handleLogout} className="text-slate-400 font-bold hover:text-white uppercase tracking-wide text-[10px]">
-                Salir ✕
-              </button>
+              <button onClick={handleLogout} className="text-slate-400 font-bold hover:text-white uppercase tracking-wide text-[10px]">Salir ✕</button>
             </div>
 
-            <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm px-4 pt-5 pb-4">
-              <div className="flex items-baseline justify-between mb-3">
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-0.5">Panini · Sticker Album</p>
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">FIFA World Cup 2026</h1>
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
+
+              {/* ── MÓVIL ── */}
+              <div className="md:hidden px-4 pt-5 pb-4">
+                <div className="flex items-baseline justify-between mb-3">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-0.5">Panini · Sticker Album</p>
+                    <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">FIFA World Cup 2026</h1>
+                  </div>
+                  <button onClick={() => setShowGlobalStats(true)} className="text-right shrink-0 hover:opacity-80 active:scale-95 transition-all outline-none">
+                    <span className="text-4xl font-black tracking-tighter" style={{ color: "#5BAF48" }}>{pct}%</span>
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400 -mt-1">Completado ↗</p>
+                  </button>
                 </div>
-                <button onClick={() => setShowGlobalStats(true)} className="text-right shrink-0 hover:opacity-80 active:scale-95 transition-all outline-none">
-                  <span className="text-4xl font-black tracking-tighter" style={{ color: "#5BAF48" }}>{pct}%</span>
-                  <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400 -mt-1">Completado ↗</p>
-                </button>
-              </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: "#5BAF48" }} />
-              </div>
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-2xl px-2 py-2 mb-3.5">
-                <div className="flex-1 flex items-center justify-center gap-1.5 py-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                  <span className="font-mono font-black text-slate-800 text-xl">{gHave}</span>
-                  <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Tengo</span>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: "#5BAF48" }} />
                 </div>
-                <div className="w-px h-4 bg-slate-200" />
-                <button onClick={() => setShowShare("missing")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl active:scale-95 transition-all">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span className="font-mono font-black text-slate-800 text-xl">{gMissing}</span>
-                  <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 underline">Faltan ↗</span>
-                </button>
-                <div className="w-px h-4 bg-slate-200" />
-                <button onClick={() => setShowShare("repeat")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl active:scale-95 transition-all">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#E8A020" }} />
-                  <span className="font-mono font-black text-slate-800 text-">{gRepeat}</span>
-                  <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 underline">Repet. ↗</span>
-                </button>
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-2xl px-2 py-2 mb-3.5">
+                  <div className="flex-1 flex items-center justify-center gap-1.5 py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                    <span className="font-mono font-black text-slate-800 text-xl">{gHave}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Tengo</span>
+                  </div>
+                  <div className="w-px h-4 bg-slate-200" />
+                  <button onClick={() => setShowShare("missing")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl active:scale-95 transition-all">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                    <span className="font-mono font-black text-slate-800 text-xl">{gMissing}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 underline">Faltan ↗</span>
+                  </button>
+                  <div className="w-px h-4 bg-slate-200" />
+                  <button onClick={() => setShowShare("repeat")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl active:scale-95 transition-all">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#E8A020" }} />
+                    <span className="font-mono font-black text-slate-800 text-xl">{gRepeat}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 underline">Repet. ↗</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                  <input type="text" placeholder="Buscar país o código..." value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full bg-slate-50 text-slate-900 text-xs rounded-xl pl-8 pr-3 py-2.5 outline-none border border-slate-200 placeholder-slate-300 shadow-sm" />
+                </div>
               </div>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
-                <input type="text" placeholder="Buscar país o código..." value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full bg-slate-50 text-slate-900 text-xs rounded-xl pl-8 pr-3 py-2.5 outline-none border border-slate-200 placeholder-slate-300 shadow-sm" />
+
+              {/* ── DESKTOP ── */}
+              <div className="hidden md:flex items-center gap-4 px-6 py-3">
+                {/* Título */}
+                <div className="shrink-0 pr-4 border-r border-slate-200">
+                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400 leading-none mb-1">Panini · Sticker Album</p>
+                  <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">FIFA World Cup 2026</h1>
+                </div>
+                {/* Stats */}
+                <div className="flex gap-2 shrink-0">
+                  <div className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px]">
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#2E5FA3" }}>{gHave}</p>
+                    <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">Tengo</p>
+                  </div>
+                  <button onClick={() => setShowShare("missing")} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
+                    <p className="text-lg font-extrabold tabular-nums text-slate-700">{gMissing}</p>
+                    <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold underline">Faltan ↗</p>
+                  </button>
+                  <button onClick={() => setShowShare("repeat")} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#E8A020" }}>{gRepeat}</p>
+                    <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold underline">Repet. ↗</p>
+                  </button>
+                  <button onClick={() => setShowGlobalStats(true)} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#5BAF48" }}>{pct}%</p>
+                    <div className="w-10 h-1 bg-slate-200 rounded-full overflow-hidden mx-auto mt-1">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#5BAF48" }} />
+                    </div>
+                    <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold mt-0.5">Total ↗</p>
+                  </button>
+                </div>
+                {/* Search */}
+                <div className="relative flex-1 min-w-[180px] pl-2 border-l border-slate-200">
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                  <input type="text" placeholder="Buscar país o código..." value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full bg-slate-50 text-slate-900 text-sm rounded-lg pl-8 pr-3 py-1.5 outline-none border border-slate-200 focus:border-slate-400 placeholder-slate-300" />
+                </div>
               </div>
             </div>
 
-            <div className="px-3 py-3 space-y-4">
-              {grpSections("FWC")}
+            {/* Secciones — 1 col móvil / 2 col tablet / 3 col desktop / 4 col xl */}
+            <div className="px-3 py-3 md:px-6 md:py-5 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-4 md:items-start">
+
+              {/* FWC */}
+              {(() => {
+                const r = grpSections("FWC");
+                if (!r) return null;
+                return (
+                  <div className="mb-4 md:mb-0">
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">FIFA World Cup</span>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+                    {r}
+                  </div>
+                );
+              })()}
+
+              {/* Groups */}
               {GROUPS.map(grp => {
                 const gs = TEAMS.filter(s => s.group === grp);
                 const matches = gs.filter(s => !search || s.code.toLowerCase().includes(search.toLowerCase()) || s.name.toLowerCase().includes(search.toLowerCase()));
                 if (!matches.length) return null;
+                const gh = gs.reduce((a, t) => a + getCounts(t.code).have, 0);
+                const gt = gs.length * 20;
                 return (
-                  <div key={grp} className="space-y-1.5">
-                    <div className="flex items-center gap-3 px-1">
+                  <div key={grp} className="mb-4 md:mb-0">
+                    <div className="flex items-center gap-2 mb-2 px-1">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Grupo {grp}</span>
                       <div className="flex-1 h-px bg-slate-200" />
+                      <span className="text-[10px] text-slate-400">{gh}/{gt}</span>
                     </div>
-                    {gs.map(sec => grpSections(sec.code))}
+                    <div className="space-y-1.5">
+                      {gs.map(sec => grpSections(sec.code))}
+                    </div>
                   </div>
                 );
               })}
-              {grpSections("CC")}
+
+              {/* CC */}
+              {(() => {
+                const r = grpSections("CC");
+                if (!r) return null;
+                return (
+                  <div className="mb-4 md:mb-0">
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Coca-Cola</span>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+                    {r}
+                  </div>
+                );
+              })()}
             </div>
             <p className="text-[10px] text-slate-300 font-medium text-center py-6">Desarrollado por Cristian Jaramillo</p>
           </div>

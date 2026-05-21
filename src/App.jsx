@@ -660,19 +660,19 @@ export default function App() {
               <div className="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-2xl px-2 py-2 mb-3.5">
                 <div className="flex-1 flex items-center justify-center gap-1.5 py-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                  <span className="font-mono font-black text-slate-800 text-sm">{gHave}</span>
+                  <span className="font-mono font-black text-slate-800 text-xl">{gHave}</span>
                   <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Tengo</span>
                 </div>
                 <div className="w-px h-4 bg-slate-200" />
                 <button onClick={() => setShowShare("missing")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl active:scale-95 transition-all">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                  <span className="font-mono font-black text-slate-800 text-sm">{gMissing}</span>
+                  <span className="font-mono font-black text-slate-800 text-xl">{gMissing}</span>
                   <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 underline">Faltan ↗</span>
                 </button>
                 <div className="w-px h-4 bg-slate-200" />
                 <button onClick={() => setShowShare("repeat")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl active:scale-95 transition-all">
                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#E8A020" }} />
-                  <span className="font-mono font-black text-slate-800 text-sm">{gRepeat}</span>
+                  <span className="font-mono font-black text-slate-800 text-">{gRepeat}</span>
                   <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 underline">Repet. ↗</span>
                 </button>
               </div>

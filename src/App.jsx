@@ -423,7 +423,7 @@ export default function App() {
 
         {/* Modal Base64 Import */}
         {showBase64Modal && (
-          <div className="bg-slate-900/60 fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm">
+          <div className="bg-slate-900/60 fixed inset-0 z-[60] flex items-center justify-center px-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl text-slate-800">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-1">⚡ Importar Backup</h3>
               <p className="text-[11px] text-slate-400 mb-4">Pega tu código Base64 para cargar este álbum.</p>

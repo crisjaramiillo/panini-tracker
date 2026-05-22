@@ -92,7 +92,10 @@ function buildShareText(type, states) {
     return "⚽ *FIFA World Cup 2026 – Faltantes*\n📋 Total: " + totalMiss + "\n\n" + rows.join("\n");
   } else {
     const rows = secList
-      .map(s => ({ ...s, reps: s.nums.filter(n => (states[`${s.code}-${n}`] ?? 0) >= 2).map(n => `${n}×${states[`${s.code}-${n}`]}`) }))
+      .map(s => ({ ...s, reps: s.nums.filter(n => (states[`${s.code}-${n}`] ?? 0) >= 2).map(n => {
+  const extras = (states[`${s.code}-${n}`] ?? 0) - 1;
+  return extras === 1 ? `${n}` : `${n}×${extras}`;
+})}))
       .filter(s => s.reps.length > 0)
       .map(s => `${s.flag} *${s.code}* (${s.reps.length}): ${s.reps.join(", ")}`);
     const totalRep = secList.flatMap(s => s.nums.filter(n => (states[`${s.code}-${n}`] ?? 0) >= 2)).length;

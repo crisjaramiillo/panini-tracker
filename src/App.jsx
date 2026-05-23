@@ -1448,31 +1448,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Proyección de sobres */}
-              {(() => {
-                if (gMissing === 0) return null;
-                const harmonicSum = (n) => { let s = 0; for (let i = 1; i <= n; i++) s += 1/i; return s; };
-                const expectedStickers = gTotal * harmonicSum(gMissing);
-                const optimistic = Math.ceil(gMissing / 7);
-                const realistic  = Math.ceil(expectedStickers / 7);
-                return (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">📦 Proyección de Sobres</h3>
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div className="rounded-xl p-3 text-center" style={{ backgroundColor: "#2E5FA3" }}>
-                        <p className="text-2xl font-black text-white">{optimistic}</p>
-                        <p className="text-[9px] uppercase tracking-wide font-bold mt-0.5" style={{ color: "#93c5fd" }}>Optimista</p>
-                      </div>
-                      <div className="rounded-xl p-3 text-center" style={{ backgroundColor: "#E8A020" }}>
-                        <p className="text-2xl font-black text-white">{realistic}</p>
-                        <p className="text-[9px] uppercase tracking-wide font-bold mt-0.5" style={{ color: "#fef3c7" }}>Realista</p>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-slate-400 text-center">7 láminas por sobre · considera probabilidad de repetidas</p>
-                  </div>
-                );
-              })()}
-
               {/* Progreso por grupo */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">📊 Progreso por Grupo</h3>

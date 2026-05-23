@@ -66,16 +66,17 @@ function buildStickers() {
   return list;
 }
 
-const ALL = buildStickers();
+const ALL    = buildStickers();
 const GROUPS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const APP_FONT = { fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif" };
 
+// ✅ CAMBIO: labels muestran extras reales (+1/×2/×3)
 function stickerCfg(st) {
   if (st === 0) return { bg: "#f1f5f9", text: "#94a3b8", sub: "#94a3b8", label: null };
   if (st === 1) return { bg: "#2E5FA3", text: "#ffffff", sub: "#93c5fd", label: null };
-  if (st === 2) return { bg: "#E8A020", text: "#ffffff", sub: "#fef3c7", label: "×2" };
-  if (st === 3) return { bg: "#E8572A", text: "#ffffff", sub: "#ffedd5", label: "×3" };
-  return { bg: "#C0392B", text: "#ffffff", sub: "#ffe4e6", label: "×4" };
+  if (st === 2) return { bg: "#E8A020", text: "#ffffff", sub: "#fef3c7", label: "+1" };
+  if (st === 3) return { bg: "#E8572A", text: "#ffffff", sub: "#ffedd5", label: "×2" };
+  return             { bg: "#C0392B", text: "#ffffff", sub: "#ffe4e6", label: "×3" };
 }
 
 function buildShareText(type, states) {
@@ -91,11 +92,12 @@ function buildShareText(type, states) {
     const totalMiss = secList.flatMap(s => s.nums.filter(n => !(states[`${s.code}-${n}`] >= 1))).length;
     return "⚽ *FIFA World Cup 2026 – Faltantes*\n📋 Total: " + totalMiss + "\n\n" + rows.join("\n");
   } else {
+    // ✅ CAMBIO: muestra extras reales (state-1)
     const rows = secList
       .map(s => ({ ...s, reps: s.nums.filter(n => (states[`${s.code}-${n}`] ?? 0) >= 2).map(n => {
-  const extras = (states[`${s.code}-${n}`] ?? 0) - 1;
-  return extras === 1 ? `${n}` : `${n}×${extras}`;
-})}))
+        const extras = (states[`${s.code}-${n}`] ?? 0) - 1;
+        return extras === 1 ? `${n}` : `${n}×${extras}`;
+      }) }))
       .filter(s => s.reps.length > 0)
       .map(s => `${s.flag} *${s.code}* (${s.reps.length}): ${s.reps.join(", ")}`);
     const totalRep = secList.flatMap(s => s.nums.filter(n => (states[`${s.code}-${n}`] ?? 0) >= 2)).length;
@@ -125,7 +127,6 @@ export default function App() {
   const [showShare,            setShowShare]            = useState(false);
   const [showGlobalStats,      setShowGlobalStats]      = useState(false);
 
-  // ── INIT ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     const savedUser = localStorage.getItem('tracker_user_email');
     if (savedUser) {
@@ -137,54 +138,40 @@ export default function App() {
     }
   }, []);
 
-  // ── DATA ───────────────────────────────────────────────────────────────────
   const fetchAlbums = async (userId) => {
     if (!userId) { setLoading(false); return; }
     setLoading(true);
     try {
       let { data, error } = await supabase
         .from('albums').select('*').eq('user_id', userId).order('created_at', { ascending: true });
-
       if (error) throw error;
-
       if (!data || data.length === 0) {
-        // INSERT separado del SELECT para evitar error 400
         await supabase.from('albums').insert([{ user_id: userId, name: 'Mi Álbum Principal' }]);
         const { data: fresh } = await supabase
           .from('albums').select('*').eq('user_id', userId).order('created_at', { ascending: true });
         data = fresh;
       }
-
       if (data && data.length > 0) {
-        setAlbums(data);
-        setActiveAlbumId(data[0].id);
+        setAlbums(data); setActiveAlbumId(data[0].id);
         await fetchStickers(data[0].id);
       }
-    } catch (e) {
-      console.error("fetchAlbums error:", e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error("fetchAlbums error:", e); }
+    finally { setLoading(false); }
   };
 
   const fetchStickers = async (albumId) => {
     if (!albumId) return;
     try {
-      const { data } = await supabase
-        .from('stickers').select('sticker_id, state').eq('album_id', albumId);
+      const { data } = await supabase.from('stickers').select('sticker_id, state').eq('album_id', albumId);
       if (data) {
         const dict = {};
         data.forEach(row => { if (row.state > 0) dict[row.sticker_id] = row.state; });
         setStates(dict);
       }
-    } catch (err) {
-      console.error("fetchStickers error:", err);
-    }
+    } catch (err) { console.error("fetchStickers error:", err); }
   };
 
-  useEffect(() => {
-    if (activeAlbumId) fetchStickers(activeAlbumId);
-  }, [activeAlbumId]);
+  useEffect(() => { if (activeAlbumId) fetchStickers(activeAlbumId); }, [activeAlbumId]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -194,37 +181,27 @@ export default function App() {
     try {
       let { data } = await supabase
         .from('albums').select('*').eq('user_id', cleanEmail).order('created_at', { ascending: true });
-
       if (!data || data.length === 0) {
         await supabase.from('albums').insert([{ user_id: cleanEmail, name: 'Mi Álbum Principal' }]);
         const { data: fresh } = await supabase
           .from('albums').select('*').eq('user_id', cleanEmail).order('created_at', { ascending: true });
         data = fresh;
       }
-
       if (data && data.length > 0) {
-        setAlbums(data);
-        setActiveAlbumId(data[0].id);
+        setAlbums(data); setActiveAlbumId(data[0].id);
         localStorage.setItem('tracker_user_email', cleanEmail);
         setSession({ user: { email: cleanEmail, id: cleanEmail } });
         await fetchStickers(data[0].id);
-      } else {
-        alert("Error al inicializar la base de datos.");
-      }
-    } catch (err) {
-      console.error("handleEmailLogin error:", err);
-      alert("Error de conexión con Supabase.");
-    } finally {
-      setLoading(false);
-    }
+      } else { alert("Error al inicializar la base de datos."); }
+    } catch (err) { console.error("handleEmailLogin error:", err); alert("Error de conexión con Supabase."); }
+    finally { setLoading(false); }
   };
 
   const handleCreateAlbum = async (e) => {
     e.preventDefault();
     if (!newAlbumName.trim() || !session?.user?.id) return;
     await supabase.from('albums').insert([{ user_id: session.user.id, name: newAlbumName }]);
-    const { data } = await supabase
-      .from('albums').select('*').eq('user_id', session.user.id).order('created_at', { ascending: true });
+    const { data } = await supabase.from('albums').select('*').eq('user_id', session.user.id).order('created_at', { ascending: true });
     if (data) { setAlbums(data); setActiveAlbumId(data[data.length - 1].id); setNewAlbumName(''); }
   };
 
@@ -238,6 +215,15 @@ export default function App() {
     if (activeAlbumId === idToDelete) setActiveAlbumId(updatedAlbums[0].id);
   };
 
+  // ✅ NUEVO: resetear láminas sin borrar el álbum
+  const handleResetAlbum = async (albumId, name) => {
+    if (!confirm(`¿Resetear "${name}"? Se borrarán todas las láminas. El álbum permanece.`)) return;
+    setLoading(true);
+    await supabase.from('stickers').delete().eq('album_id', albumId);
+    if (albumId === activeAlbumId) setStates({});
+    setLoading(false);
+  };
+
   const handleInjectBase64String = async (e) => {
     e.preventDefault();
     if (!rawBase64Input.trim() || !targetPreloadAlbumId) return;
@@ -247,9 +233,7 @@ export default function App() {
       await supabase.from('stickers').delete().eq('album_id', targetPreloadAlbumId);
       const insertPayload = Object.entries(parsedJSON)
         .filter(([_, state]) => state > 0)
-        .map(([stickerId, state]) => ({
-          album_id: targetPreloadAlbumId, sticker_id: stickerId, state: Math.min(state, 4)
-        }));
+        .map(([stickerId, state]) => ({ album_id: targetPreloadAlbumId, sticker_id: stickerId, state: Math.min(state, 4) }));
       if (insertPayload.length > 0) {
         const { error } = await supabase.from('stickers').insert(insertPayload);
         if (error) throw error;
@@ -257,11 +241,8 @@ export default function App() {
       if (targetPreloadAlbumId === activeAlbumId) await fetchStickers(activeAlbumId);
       alert(`¡Listo! Se cargaron ${insertPayload.length} láminas.`);
       setRawBase64Input(''); setShowBase64Modal(false);
-    } catch (err) {
-      alert("Error: Base64 inválido."); console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert("Error: Base64 inválido."); console.error(err); }
+    finally { setLoading(false); }
   };
 
   const triggerBase64Popup = (albumId) => {
@@ -271,20 +252,13 @@ export default function App() {
   const handleExportBackup = async (albumId, albumName) => {
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('stickers').select('sticker_id, state').eq('album_id', albumId);
+      const { data } = await supabase.from('stickers').select('sticker_id, state').eq('album_id', albumId);
       const dict = {};
       if (data) data.forEach(r => { if (r.state > 0) dict[r.sticker_id] = r.state; });
-      const code = btoa(JSON.stringify(dict));
-      setBackupCode(code);
-      setBackupAlbumName(albumName);
-      setCopyDone(false);
-      setShowBackupModal(true);
-    } catch(e) {
-      console.error(e); alert("Error al generar backup.");
-    } finally {
-      setLoading(false);
-    }
+      setBackupCode(btoa(JSON.stringify(dict)));
+      setBackupAlbumName(albumName); setCopyDone(false); setShowBackupModal(true);
+    } catch(e) { console.error(e); alert("Error al generar backup."); }
+    finally { setLoading(false); }
   };
 
   const toggle = useCallback(async (id) => {
@@ -292,8 +266,17 @@ export default function App() {
     const cur = states[id] ?? 0;
     const nxt = cur >= 4 ? 0 : cur + 1;
     setStates(prev => { const upd = { ...prev, [id]: nxt }; if (nxt === 0) delete upd[id]; return upd; });
-    await supabase.from('stickers')
-      .upsert({ album_id: activeAlbumId, sticker_id: id, state: nxt }, { onConflict: 'album_id,sticker_id' });
+    await supabase.from('stickers').upsert({ album_id: activeAlbumId, sticker_id: id, state: nxt }, { onConflict: 'album_id,sticker_id' });
+  }, [states, activeAlbumId]);
+
+  // ✅ NUEVO: bajar estado (nunca por debajo de 1 para proteger el álbum)
+  const toggleDown = useCallback(async (id) => {
+    if (!activeAlbumId) return;
+    const cur = states[id] ?? 0;
+    if (cur <= 1) return;
+    const nxt = cur - 1;
+    setStates(prev => { const upd = { ...prev, [id]: nxt }; if (nxt === 0) delete upd[id]; return upd; });
+    await supabase.from('stickers').upsert({ album_id: activeAlbumId, sticker_id: id, state: nxt }, { onConflict: 'album_id,sticker_id' });
   }, [states, activeAlbumId]);
 
   const selectSection = useCallback((code) => { setActiveSection(code); setFilter("all"); setSearch(""); }, []);
@@ -315,7 +298,8 @@ export default function App() {
   };
 
   const gHave    = ALL.filter(s => (states[s.id] ?? 0) >= 1).length;
-  const gRepeat  = ALL.filter(s => (states[s.id] ?? 0) >= 2).length;
+  // ✅ CAMBIO: suma total de extras, no posiciones únicas
+  const gRepeat  = ALL.reduce((acc, s) => { const st = states[s.id] ?? 0; return st >= 2 ? acc + (st - 1) : acc; }, 0);
   const gMissing = ALL.filter(s => !((states[s.id] ?? 0) >= 1)).length;
   const gTotal   = ALL.length;
   const pct      = Math.round((gHave / gTotal) * 100) || 0;
@@ -328,7 +312,6 @@ export default function App() {
     const done = spct === 100;
     const doneBg = sec.code === "FWC" ? "#B8940A" : sec.code === "CC" ? "#C0392B" : "#3D8B30";
     const countryStickers = ALL.filter(s => s.section === sec.code);
-
     return (
       <button key={sec.code} onClick={() => selectSection(sec.code)}
         style={done ? { backgroundColor: doneBg } : {}}
@@ -352,11 +335,7 @@ export default function App() {
         <div className="flex gap-[3px] flex-wrap pl-10 w-full">
           {countryStickers.map(s => {
             const st = states[s.id] ?? 0;
-            const dotColor = st >= 2
-              ? (done ? "rgba(255,255,255,0.65)" : "#E8A020")
-              : st === 1
-              ? (done ? "rgba(255,255,255,0.95)" : "#5BAF48")
-              : (done ? "rgba(255,255,255,0.2)" : "#E2E8F0");
+            const dotColor = st >= 2 ? (done ? "rgba(255,255,255,0.65)" : "#E8A020") : st === 1 ? (done ? "rgba(255,255,255,0.95)" : "#5BAF48") : (done ? "rgba(255,255,255,0.2)" : "#E2E8F0");
             return <div key={s.id} className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: dotColor }} />;
           })}
         </div>
@@ -385,9 +364,7 @@ export default function App() {
           <input type="email" placeholder="tu-correo@email.com" value={emailInput}
             onChange={e => setEmailInput(e.target.value)} required
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-center outline-none placeholder-slate-300 focus:border-slate-400" />
-          <button type="submit" className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">
-            Ingresar 🚀
-          </button>
+          <button type="submit" className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">Ingresar 🚀</button>
         </form>
       </div>
     </div>
@@ -402,19 +379,13 @@ export default function App() {
           <div className="bg-slate-900/60 fixed inset-0 z-[60] flex items-center justify-center px-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl text-slate-800">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-1">⬇ Backup — {backupAlbumName}</h3>
-              <p className="text-[11px] text-slate-400 mb-3">Toca el campo, selecciona todo y copia el código. Guárdalo en Notas.</p>
+              <p className="text-[11px] text-slate-400 mb-3">Toca el campo, selecciona todo y copia el código.</p>
               <textarea readOnly value={backupCode}
                 onFocus={e => e.target.select()} onClick={e => e.target.select()}
-                rows={5}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-[10px] font-mono outline-none resize-none placeholder-slate-300 text-emerald-700"/>
+                rows={5} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-[10px] font-mono outline-none resize-none text-emerald-700"/>
               <div className="flex gap-2 mt-3">
                 <button onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(backupCode);
-                    setCopyDone(true); setTimeout(() => setCopyDone(false), 3000);
-                  } catch {
-                    document.querySelector('#backup-export-ta')?.select();
-                  }
+                  try { await navigator.clipboard.writeText(backupCode); setCopyDone(true); setTimeout(() => setCopyDone(false), 3000); } catch {}
                 }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${copyDone ? "bg-emerald-500 text-white" : "bg-slate-900 text-white"}`}>
                   {copyDone ? "✓ Copiado" : "Copiar al portapapeles"}
                 </button>
@@ -474,9 +445,11 @@ export default function App() {
                         <span className="text-sm font-bold text-slate-800 truncate">{a.name}</span>
                         {isSelected && <span className="bg-emerald-500 text-white font-bold text-[8px] uppercase px-1.5 py-0.5 rounded shrink-0">Activo</span>}
                       </div>
+                      {/* ✅ NUEVO: botones Backup, Import, Reset, Borrar */}
                       <div className="flex gap-1.5 shrink-0">
                         <button onClick={() => handleExportBackup(a.id, a.name)} className="bg-emerald-50 text-emerald-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">⬇ Backup</button>
                         <button onClick={() => triggerBase64Popup(a.id)} className="bg-blue-50 text-blue-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">⚡ Import</button>
+                        <button onClick={() => handleResetAlbum(a.id, a.name)} className="bg-amber-50 text-amber-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">↺ Reset</button>
                         <button onClick={() => handleDeleteAlbum(a.id, a.name)} className="bg-red-50 text-red-600 font-bold text-[10px] px-2.5 py-1.5 rounded-lg">🗑️</button>
                       </div>
                     </div>
@@ -517,7 +490,8 @@ export default function App() {
                       {sectionStickers.map(s => {
                         const cfg = stickerCfg(states[s.id] ?? 0);
                         return (
-                          <button key={s.id} onClick={() => toggle(s.id)}
+                          // ✅ CAMBIO: toggleDown en vista repetidas (protege álbum)
+                          <button key={s.id} onClick={() => showShare === "repeat" ? toggleDown(s.id) : toggle(s.id)}
                             style={{ backgroundColor: cfg.bg, borderColor: cfg.bg, color: cfg.text }}
                             className="border-2 rounded-xl h-12 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
                             <span className="text-base font-bold leading-none">{s.num}</span>
@@ -558,25 +532,27 @@ export default function App() {
 
           return (
             <div className="min-h-screen bg-slate-50">
+              {/* ✅ CAMBIO: cabecera rediseñada con bandera grande y nombre prominente */}
               <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 pt-4 pb-3 shadow-sm">
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center justify-between mb-3">
                   <button onClick={goBack} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 font-bold">←</button>
-                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                    <span className="text-xl">{sec.flag}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 font-mono">{sec.code}</span>
-                        {sec.group && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Grupo {sec.group}</span>}
-                      </div>
-                      <p className="text-xs text-slate-500 truncate">{sec.name}</p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-slate-900">{c.have}<span className="text-slate-400 font-normal">/{sec.total}</span></p>
-                    <p className="text-[10px] text-slate-400">{spct}%</p>
+                  <div className="text-right">
+                    <p className="text-xl font-black text-slate-900 tabular-nums">{c.have}<span className="text-slate-300 font-normal text-base">/{sec.total}</span></p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{spct}% completado</p>
                   </div>
                 </div>
-                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-3">
+                <div className="flex items-center gap-4 mb-4">
+                  <span className="text-6xl leading-none">{sec.flag}</span>
+                  <div className="min-w-0">
+                    <p className="text-2xl font-black text-slate-900 leading-tight break-words">{sec.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs font-bold text-slate-500 font-mono">{sec.code}</span>
+                      {sec.group && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">· Grupo {sec.group}</span>}
+                    </div>
+                  </div>
+                </div>
+                {/* ✅ CAMBIO: barra h-3 más gruesa */}
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-3">
                   <div className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${spct}%`, backgroundColor: spct === 100 ? "#5BAF48" : "#2E5FA3" }} />
                 </div>
@@ -592,7 +568,8 @@ export default function App() {
                   {filtered.map(s => {
                     const cfg = stickerCfg(states[s.id] ?? 0);
                     return (
-                      <button key={s.id} onClick={() => toggle(s.id)}
+                      // ✅ CAMBIO: toggleDown en tab Repet.
+                      <button key={s.id} onClick={() => filter === "repeat" ? toggleDown(s.id) : toggle(s.id)}
                         style={{ backgroundColor: cfg.bg, borderColor: cfg.bg, color: cfg.text }}
                         className="border-2 rounded-xl h-16 flex flex-col items-center justify-center active:scale-90 transition-all">
                         <span className="text-[9px] font-semibold font-mono" style={{ color: cfg.sub }}>{s.section}</span>
@@ -634,7 +611,6 @@ export default function App() {
               <button onClick={() => setShowGlobalStats(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
             </div>
             <div className="flex-1 overflow-auto p-4 space-y-4">
-              {/* Donut */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col items-center">
                 {(() => {
                   const R = 76, SW = 16, C = 2 * Math.PI * R;
@@ -666,7 +642,6 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              {/* Dot map */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                 <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3">994 láminas en orden del álbum</p>
                 <div className="flex flex-wrap gap-[3px]">
@@ -684,7 +659,6 @@ export default function App() {
         {/* Overview Home */}
         {!activeSection && !showGlobalStats && showShare !== "missing" && showShare !== "repeat" && (
           <div className="min-h-screen bg-slate-50">
-            {/* Top bar */}
             <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <select value={activeAlbumId} onChange={e => setActiveAlbumId(e.target.value)}
@@ -696,10 +670,7 @@ export default function App() {
               <button onClick={handleLogout} className="text-slate-400 font-bold hover:text-white uppercase tracking-wide text-[10px]">Salir ✕</button>
             </div>
 
-            {/* Sticky header */}
             <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
-
-              {/* ── MÓVIL ── */}
               <div className="md:hidden px-4 pt-5 pb-4">
                 <div className="flex items-baseline justify-between mb-3">
                   <div>
@@ -741,14 +712,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* ── DESKTOP ── */}
               <div className="hidden md:flex items-center gap-4 px-6 py-3">
-                {/* Título */}
                 <div className="shrink-0 pr-4 border-r border-slate-200">
                   <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400 leading-none mb-1">Panini · Sticker Album</p>
                   <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none">FIFA World Cup 2026</h1>
                 </div>
-                {/* Stats */}
                 <div className="flex gap-2 shrink-0">
                   <div className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px]">
                     <p className="text-lg font-extrabold tabular-nums" style={{ color: "#2E5FA3" }}>{gHave}</p>
@@ -770,7 +738,6 @@ export default function App() {
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold mt-0.5">Total ↗</p>
                   </button>
                 </div>
-                {/* Search */}
                 <div className="relative flex-1 min-w-[180px] pl-2 border-l border-slate-200">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
                   <input type="text" placeholder="Buscar país o código..." value={search}
@@ -780,25 +747,16 @@ export default function App() {
               </div>
             </div>
 
-            {/* Secciones — 1 col móvil / 2 col tablet / 3 col desktop / 4 col xl */}
             <div className="px-3 py-3 md:px-6 md:py-5 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-4 md:items-start">
+              {(() => { const r = grpSections("FWC"); if (!r) return null; return (
+                <div className="mb-4 md:mb-0">
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">FIFA World Cup</span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>{r}
+                </div>
+              ); })()}
 
-              {/* FWC */}
-              {(() => {
-                const r = grpSections("FWC");
-                if (!r) return null;
-                return (
-                  <div className="mb-4 md:mb-0">
-                    <div className="flex items-center gap-2 mb-2 px-1">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">FIFA World Cup</span>
-                      <div className="flex-1 h-px bg-slate-200" />
-                    </div>
-                    {r}
-                  </div>
-                );
-              })()}
-
-              {/* Groups */}
               {GROUPS.map(grp => {
                 const gs = TEAMS.filter(s => s.group === grp);
                 const matches = gs.filter(s => !search || s.code.toLowerCase().includes(search.toLowerCase()) || s.name.toLowerCase().includes(search.toLowerCase()));
@@ -812,27 +770,19 @@ export default function App() {
                       <div className="flex-1 h-px bg-slate-200" />
                       <span className="text-[10px] text-slate-400">{gh}/{gt}</span>
                     </div>
-                    <div className="space-y-1.5">
-                      {gs.map(sec => grpSections(sec.code))}
-                    </div>
+                    <div className="space-y-1.5">{gs.map(sec => grpSections(sec.code))}</div>
                   </div>
                 );
               })}
 
-              {/* CC */}
-              {(() => {
-                const r = grpSections("CC");
-                if (!r) return null;
-                return (
-                  <div className="mb-4 md:mb-0">
-                    <div className="flex items-center gap-2 mb-2 px-1">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Coca-Cola</span>
-                      <div className="flex-1 h-px bg-slate-200" />
-                    </div>
-                    {r}
-                  </div>
-                );
-              })()}
+              {(() => { const r = grpSections("CC"); if (!r) return null; return (
+                <div className="mb-4 md:mb-0">
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Coca-Cola</span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>{r}
+                </div>
+              ); })()}
             </div>
             <p className="text-[10px] text-slate-300 font-medium text-center py-6">Desarrollado por Cristian Jaramillo</p>
           </div>

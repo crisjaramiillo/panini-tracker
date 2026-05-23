@@ -126,6 +126,18 @@ export default function App() {
   const [search,               setSearch]               = useState("");
   const [showShare,            setShowShare]            = useState(false);
   const [showGlobalStats,      setShowGlobalStats]      = useState(false);
+  const [showIntercambio,      setShowIntercambio]      = useState(false);
+  const [intercambioStep,      setIntercambioStep]      = useState(1);
+  const [tradeGive,            setTradeGive]            = useState({});
+  const [tradeReceive,         setTradeReceive]         = useState({});
+  const [showSobres,           setShowSobres]           = useState(false);
+  const [sobresInput,          setSobresInput]          = useState('');
+  const [sobresPending,        setSobresPending]        = useState({});
+  const [sobresStep,           setSobresStep]           = useState('scan');
+  const [theme,                setTheme]                = useState(() => localStorage.getItem('panini_theme') || 'system');
+  const [sectionComplete,      setSectionComplete]      = useState(null); // { code, name, flag }
+  const [showAlbumComplete,    setShowAlbumComplete]    = useState(false);
+  const [albumCompleteShown,   setAlbumCompleteShown]   = useState(false); // 'scan' | 'confirm'
 
   useEffect(() => {
     const savedUser = localStorage.getItem('tracker_user_email');
@@ -172,6 +184,23 @@ export default function App() {
   };
 
   useEffect(() => { if (activeAlbumId) fetchStickers(activeAlbumId); }, [activeAlbumId]);
+
+  // ── MODO OSCURO ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const applyTheme = () => {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+      document.documentElement.classList.toggle('dark', isDark);
+    };
+    applyTheme();
+    localStorage.setItem('panini_theme', theme);
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', applyTheme);
+    return () => mq.removeEventListener('change', applyTheme);
+  }, [theme]);
+
+  // ── CELEBRACIÓN ÁLBUM COMPLETO ───────────────────────────────────────────────
+  // (movido después de pct)
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -265,7 +294,24 @@ export default function App() {
     if (!activeAlbumId) return;
     const cur = states[id] ?? 0;
     const nxt = cur >= 4 ? 0 : cur + 1;
-    setStates(prev => { const upd = { ...prev, [id]: nxt }; if (nxt === 0) delete upd[id]; return upd; });
+    setStates(prev => {
+      const upd = { ...prev, [id]: nxt };
+      if (nxt === 0) delete upd[id];
+      // Detectar si se completó una sección
+      if (nxt === 1) {
+        const sticker = ALL.find(s => s.id === id);
+        if (sticker) {
+          const secStickers = ALL.filter(s => s.section === sticker.section);
+          const newHave = secStickers.filter(s => (s.id === id ? nxt : (upd[s.id] ?? 0)) >= 1).length;
+          if (newHave === secStickers.length) {
+            const sec = SECTIONS.find(s => s.code === sticker.section);
+            setSectionComplete(sec ? { code: sec.code, name: sec.name, flag: sec.flag } : null);
+            setTimeout(() => setSectionComplete(null), 3200);
+          }
+        }
+      }
+      return upd;
+    });
     await supabase.from('stickers').upsert({ album_id: activeAlbumId, sticker_id: id, state: nxt }, { onConflict: 'album_id,sticker_id' });
   }, [states, activeAlbumId]);
 
@@ -279,8 +325,144 @@ export default function App() {
     await supabase.from('stickers').upsert({ album_id: activeAlbumId, sticker_id: id, state: nxt }, { onConflict: 'album_id,sticker_id' });
   }, [states, activeAlbumId]);
 
+  // ── APERTURA DE SOBRES ─────────────────────────────────────────────────────
+  const parseStickerCode = (raw) => {
+    // Acepta: arg5, ARG-5, ARG 5, arg-5, FWC-3, fwc3, cc7, CC-7
+    const clean = raw.trim().toUpperCase().replace(/[\s\-_]/g, '');
+    // Formato: letras + número
+    const match = clean.match(/^([A-Z]+)(\d+)$/);
+    if (!match) return null;
+    const [, code, num] = match;
+    const id = `${code}-${num}`;
+    return ALL.find(s => s.id === id) ? id : null;
+  };
+
+  const handleSobresInput = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const id = parseStickerCode(sobresInput);
+      if (id) {
+        setSobresPending(prev => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+        setSobresInput('');
+      } else if (sobresInput.trim()) {
+        // Shake input to indicate error
+        setSobresInput('❌ ' + sobresInput.trim());
+        setTimeout(() => setSobresInput(''), 800);
+      }
+    }
+  };
+
+  const removeSobresPending = (id) => {
+    setSobresPending(prev => {
+      const u = { ...prev, [id]: (prev[id] ?? 1) - 1 };
+      if (u[id] <= 0) delete u[id];
+      return u;
+    });
+  };
+
+  const triggerSectionToasts = (oldStates, newStates) => {
+    for (const sec of SECTIONS) {
+      const stickers = ALL.filter(s => s.section === sec.code);
+      const wasComplete = stickers.every(s => (oldStates[s.id] ?? 0) >= 1);
+      const nowComplete = stickers.every(s => (newStates[s.id] ?? 0) >= 1);
+      if (!wasComplete && nowComplete) {
+        setSectionComplete({ code: sec.code, name: sec.name, flag: sec.flag });
+        setTimeout(() => setSectionComplete(null), 3200);
+        break; // mostrar solo la primera (si hay varias, la más importante)
+      }
+    }
+  };
+
+  const confirmSobres = async () => {
+    setLoading(true);
+    try {
+      const oldStates = { ...states };
+      const newStates = { ...states };
+      for (const [id, count] of Object.entries(sobresPending)) {
+        newStates[id] = Math.min(4, (newStates[id] ?? 0) + count);
+      }
+      const payload = Object.entries(sobresPending).map(([id, count]) => ({
+        album_id: activeAlbumId,
+        sticker_id: id,
+        state: newStates[id],
+      }));
+      if (payload.length > 0) {
+        await supabase.from('stickers').upsert(payload, { onConflict: 'album_id,sticker_id' });
+      }
+      setStates(newStates);
+      triggerSectionToasts(oldStates, newStates);
+      // Pequeño delay para que el toast se vea antes de cerrar la vista
+      await new Promise(r => setTimeout(r, 200));
+      setShowSobres(false);
+      setSobresPending({});
+      setSobresStep('scan');
+    } catch(e) { console.error(e); alert("Error al guardar."); }
+    finally { setLoading(false); }
+  };
+
+  const startSobres = () => {
+    setSobresPending({}); setSobresInput(''); setSobresStep('scan'); setActiveSection(null); setShowSobres(true);
+  };
   const selectSection = useCallback((code) => { setActiveSection(code); setFilter("all"); setSearch(""); }, []);
   const goBack = useCallback(() => { setActiveSection(null); }, []);
+
+  // ── INTERCAMBIO ────────────────────────────────────────────────────────────
+  const startIntercambio = () => {
+    setTradeGive({}); setTradeReceive({}); setIntercambioStep(1); setActiveSection(null); setShowIntercambio(true);
+  };
+
+  const addToGive = (id) => {
+    const cur = states[id] ?? 0;
+    const giving = tradeGive[id] ?? 0;
+    if (giving >= cur - 1) return; // nunca entrega la última (que está pegada)
+    setTradeGive(prev => ({ ...prev, [id]: giving + 1 }));
+  };
+
+  const removeFromGive = (id) => {
+    const giving = tradeGive[id] ?? 0;
+    if (giving <= 0) return;
+    setTradeGive(prev => { const u = { ...prev, [id]: giving - 1 }; if (!u[id]) delete u[id]; return u; });
+  };
+
+  const addToReceive = (id) => {
+    const cur = tradeReceive[id] ?? 0;
+    setTradeReceive(prev => ({ ...prev, [id]: cur + 1 }));
+  };
+
+  const removeFromReceive = (id) => {
+    const cur = tradeReceive[id] ?? 0;
+    if (cur <= 0) return;
+    setTradeReceive(prev => { const u = { ...prev, [id]: cur - 1 }; if (!u[id]) delete u[id]; return u; });
+  };
+
+  const confirmIntercambio = async () => {
+    setLoading(true);
+    try {
+      const oldStates = { ...states };
+      const newStates = { ...states };
+      for (const [id, count] of Object.entries(tradeGive)) {
+        newStates[id] = Math.max(1, (newStates[id] ?? 0) - count);
+      }
+      for (const [id, count] of Object.entries(tradeReceive)) {
+        newStates[id] = Math.min(4, (newStates[id] ?? 0) + count);
+      }
+      const allChanged = new Set([...Object.keys(tradeGive), ...Object.keys(tradeReceive)]);
+      const upsertPayload = Array.from(allChanged).map(id => ({
+        album_id: activeAlbumId, sticker_id: id, state: newStates[id] ?? 0,
+      }));
+      if (upsertPayload.length > 0) {
+        await supabase.from('stickers').upsert(upsertPayload, { onConflict: 'album_id,sticker_id' });
+      }
+      setStates(prev => {
+        const upd = { ...prev };
+        for (const id of allChanged) { if (newStates[id]) upd[id] = newStates[id]; else delete upd[id]; }
+        return upd;
+      });
+      triggerSectionToasts(oldStates, newStates);
+      setShowIntercambio(false); setTradeGive({}); setTradeReceive({});
+    } catch(e) { console.error(e); alert("Error al confirmar intercambio."); }
+    finally { setLoading(false); }
+  };
 
   const getCounts = (code) => {
     const ss = ALL.filter(s => s.section === code);
@@ -298,11 +480,18 @@ export default function App() {
   };
 
   const gHave    = ALL.filter(s => (states[s.id] ?? 0) >= 1).length;
-  // ✅ CAMBIO: suma total de extras, no posiciones únicas
   const gRepeat  = ALL.reduce((acc, s) => { const st = states[s.id] ?? 0; return st >= 2 ? acc + (st - 1) : acc; }, 0);
   const gMissing = ALL.filter(s => !((states[s.id] ?? 0) >= 1)).length;
   const gTotal   = ALL.length;
   const pct      = Math.round((gHave / gTotal) * 100) || 0;
+
+  // ── CELEBRACIÓN ÁLBUM COMPLETO (después de pct) ──────────────────────────────
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (pct === 100 && gHave === gTotal && gTotal > 0 && !albumCompleteShown) {
+      setTimeout(() => { setShowAlbumComplete(true); setAlbumCompleteShown(true); }, 600);
+    }
+  }, [pct, gHave, gTotal]);
 
   const grpSections = (code) => {
     const sec = SECTIONS.find(s => s.code === code);
@@ -315,7 +504,7 @@ export default function App() {
     return (
       <button key={sec.code} onClick={() => selectSection(sec.code)}
         style={done ? { backgroundColor: doneBg } : {}}
-        className={`w-full flex flex-col rounded-xl px-3 pt-2.5 pb-2 border shadow-sm text-left active:scale-[0.98] transition-all ${done ? "text-white border-0" : "bg-white border-slate-200"}`}>
+        className={`w-full flex flex-col rounded-xl px-3 pt-2.5 pb-2 border shadow-sm text-left active:scale-[0.98] transition-all ${done ? "text-white border-0" : "bg-white border-slate-200"} ${sectionComplete?.code === sec.code ? "group-complete-pulse" : ""}`}>
         <div className="flex items-center gap-3 w-full mb-1.5">
           <span className="text-xl w-7 text-center shrink-0">{sec.flag}</span>
           <div className="flex-1 min-w-0">
@@ -371,7 +560,7 @@ export default function App() {
   );
 
   return (
-    <div style={APP_FONT} className="select-none">
+    <div style={APP_FONT} className={`select-none${theme === 'dark' ? ' dark' : theme === 'system' ? '' : ''}`}>
       <div id="app-frame" className="mx-auto">
 
         {/* Modal Backup Export */}
@@ -457,6 +646,515 @@ export default function App() {
                 })}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── TOAST SECCIÓN COMPLETA ── */}
+        {sectionComplete && (
+          <div className="section-toast">
+            <div style={{
+              background: 'linear-gradient(135deg, #166534, #3D8B30)',
+              borderRadius: '16px',
+              padding: '12px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+              minWidth: '280px',
+              maxWidth: '340px',
+            }}>
+              <span style={{ fontSize: '32px', lineHeight: 1 }}>{sectionComplete.flag}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: '#86efac', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>¡Sección completada!</p>
+                <p style={{ color: 'white', fontSize: '15px', fontWeight: 900, margin: '0 0 4px', lineHeight: 1.2 }}>{sectionComplete.name}</p>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', margin: 0 }}>
+                  {gHave}/{gTotal} láminas · {pct}% del álbum
+                </p>
+              </div>
+              <span style={{ fontSize: '20px' }}>🏆</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── CELEBRACIÓN ÁLBUM COMPLETO ── */}
+        {showAlbumComplete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
+            {Array.from({length:40}).map((_,i) => (
+              <div key={i} style={{
+                position:'fixed',
+                left:`${Math.random()*100}%`,
+                top:`-${10+Math.random()*20}px`,
+                width:`${7+Math.random()*7}px`,
+                height:`${7+Math.random()*7}px`,
+                borderRadius:'2px',
+                backgroundColor:['#5BAF48','#2E5FA3','#E8A020','#E8572A','#6845A0','#FFD700'][i%6],
+                animation:`confettiFall ${2+Math.random()*3}s linear ${Math.random()*1.5}s forwards`,
+                pointerEvents:'none',
+                zIndex:201,
+              }}/>
+            ))}
+            <div style={{background:'white',borderRadius:'28px',padding:'28px',width:'100%',maxWidth:'360px',textAlign:'center',position:'relative',zIndex:10,boxShadow:'0 25px 60px rgba(0,0,0,0.6)'}}>
+              <div style={{fontSize:'64px',marginBottom:'8px'}}>🏆</div>
+              <h2 style={{fontSize:'24px',fontWeight:900,color:'#0f172a',margin:'0 0 4px'}}>¡Álbum Completo!</h2>
+              <p style={{fontSize:'13px',color:'#94a3b8',margin:'0 0 20px'}}>FIFA World Cup 2026 · 994/994 láminas</p>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'20px'}}>
+                <div style={{backgroundColor:'#2E5FA3',borderRadius:'14px',padding:'14px 8px'}}>
+                  <p style={{fontSize:'22px',fontWeight:900,color:'white',margin:0}}>{gTotal}</p>
+                  <p style={{fontSize:'9px',fontWeight:700,color:'#93c5fd',textTransform:'uppercase',letterSpacing:'0.1em',margin:'4px 0 0'}}>Láminas</p>
+                </div>
+                <div style={{backgroundColor:'#E8A020',borderRadius:'14px',padding:'14px 8px'}}>
+                  <p style={{fontSize:'22px',fontWeight:900,color:'white',margin:0}}>{gRepeat}</p>
+                  <p style={{fontSize:'9px',fontWeight:700,color:'#fef3c7',textTransform:'uppercase',letterSpacing:'0.1em',margin:'4px 0 0'}}>Repetidas</p>
+                </div>
+              </div>
+              <a href={`whatsapp://send?text=${encodeURIComponent(
+                '🏆⚽ *¡Completé el álbum FIFA World Cup 2026!*\n\n' +
+                '📊 Mi colección:\n' +
+                '✅ ' + gTotal + ' láminas pegadas\n' +
+                '🔄 ' + gRepeat + ' repetidas acumuladas\n\n' +
+                '¡El Mundial empieza con el álbum completo! 🎉'
+              )}`} style={{
+                display:'flex',alignItems:'center',justifyContent:'center',gap:'10px',
+                width:'100%',padding:'14px',borderRadius:'14px',
+                backgroundColor:'#25D366',color:'white',
+                fontWeight:700,fontSize:'14px',
+                textDecoration:'none',boxSizing:'border-box',marginBottom:'10px',
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                <span>Compartir por WhatsApp</span>
+              </a>
+              <button onClick={() => setShowAlbumComplete(false)} style={{
+                width:'100%',padding:'10px',borderRadius:'14px',border:'none',
+                background:'transparent',color:'#94a3b8',fontWeight:700,fontSize:'13px',cursor:'pointer'
+              }}>Cerrar</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── APERTURA DE SOBRES ── */}
+        {showSobres && (
+          <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col overflow-auto" style={APP_FONT}>
+            <div className="bg-white border-b border-slate-200 px-4 pt-5 pb-4 sticky top-0 z-10 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-0.5">Registro rápido</p>
+                  <h2 className="text-base font-extrabold text-slate-900">Apertura de Sobres</h2>
+                </div>
+                <button onClick={() => setShowSobres(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
+              </div>
+            </div>
+
+            {sobresStep === 'scan' && (
+              <>
+                {/* Input */}
+                <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100">
+                  <p className="text-[11px] text-slate-400 mb-2">Escribe el código y presiona <strong>Enter</strong> o <strong>Espacio</strong></p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={sobresInput}
+                      onChange={e => setSobresInput(e.target.value)}
+                      onKeyDown={handleSobresInput}
+                      placeholder="ej: ARG5, MEX-12, fwc3..."
+                      autoFocus
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"
+                    />
+                    <button onClick={() => {
+                      const id = parseStickerCode(sobresInput);
+                      if (id) { setSobresPending(prev => ({ ...prev, [id]: (prev[id] ?? 0) + 1 })); setSobresInput(''); }
+                    }} className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95">
+                      ✓
+                    </button>
+                  </div>
+                  {/* Contadores en tiempo real */}
+                  <div className="flex gap-3 mt-3">
+                    {(() => {
+                      const total    = Object.values(sobresPending).reduce((a,b)=>a+b,0);
+                      const nuevas   = Object.entries(sobresPending).filter(([id]) => (states[id] ?? 0) === 0).reduce((a,[,b])=>a+b,0);
+                      const repet    = total - nuevas;
+                      return (
+                        <>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#1e293b" }}>
+                            <p className="text-xl font-black text-white">{total}</p>
+                            <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#94a3b8" }}>Total</p>
+                          </div>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#166534" }}>
+                            <p className="text-xl font-black text-white">{nuevas}</p>
+                            <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#86efac" }}>Nuevas</p>
+                          </div>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#E8A020" }}>
+                            <p className="text-xl font-black text-white">{repet}</p>
+                            <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#fef3c7" }}>Repetidas</p>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Sección sugerida o láminas pendientes */}
+                <div className="flex-1 overflow-auto pb-28">
+                  {(() => {
+                    const query = sobresInput.trim().toUpperCase().replace(/[\s\-_]/g, '');
+                    const matchedSec = query.length >= 2 ? SECTIONS.find(s => s.code === query) : null;
+
+                    if (matchedSec) {
+                      const secStickers = ALL.filter(s => s.section === matchedSec.code);
+                      return (
+                        <div className="px-4 pt-3">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">{matchedSec.flag}</span>
+                            <span className="text-sm font-black text-slate-900">{matchedSec.name}</span>
+                            <button onClick={() => setSobresInput('')} className="ml-auto text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded-lg">✕ limpiar</button>
+                          </div>
+                          <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
+                            {secStickers.map(s => {
+                              const pending  = sobresPending[s.id] ?? 0;
+                              const curSt    = states[s.id] ?? 0;
+                              const isNew    = curSt === 0;
+                              const bgColor  = pending > 0 ? "#2E5FA3" : isNew ? "#f1f5f9" : "#E8A020";
+                              const txColor  = pending > 0 || !isNew ? "#fff" : "#64748b";
+                              const subColor = pending > 0 ? "#93c5fd" : isNew ? "#94a3b8" : "#fef3c7";
+                              return (
+                                <button key={s.id}
+                                  onClick={() => setSobresPending(prev => ({ ...prev, [s.id]: (prev[s.id] ?? 0) + 1 }))}
+                                  onContextMenu={e => { e.preventDefault(); removeSobresPending(s.id); }}
+                                  style={{ backgroundColor: bgColor, color: txColor }}
+                                  className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
+                                  <span className="text-lg font-black leading-none">{s.num}</span>
+                                  {pending > 0
+                                    ? <span className="text-[9px] font-bold" style={{ color: subColor }}>+{pending}</span>
+                                    : <span className="text-[8px]" style={{ color: subColor }}>{isNew ? "falta" : "tengo"}</span>
+                                  }
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[10px] text-slate-400 text-center mt-3">Tap = agregar · manten presionado = quitar</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="px-4 pt-3">
+                        {Object.keys(sobresPending).length === 0 ? (
+                          <div className="text-center py-12">
+                            <p className="text-4xl mb-3">📦</p>
+                            <p className="text-sm text-slate-500">Escribe el código de una sección</p>
+                            <p className="text-xs text-slate-300 mt-1">ARG · MEX · FWC · BRA · CC</p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Láminas agregadas</p>
+                            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(66px, 1fr))" }}>
+                              {Object.entries(sobresPending).map(([id, count]) => {
+                                const isNew = (states[id] ?? 0) === 0;
+                                return (
+                                  <button key={id} onClick={() => removeSobresPending(id)}
+                                    className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono"
+                                    style={{ backgroundColor: isNew ? "#166534" : "#E8A020" }}>
+                                    <span className="text-[9px] font-bold text-white/70">{id.split('-')[0]}</span>
+                                    <span className="text-lg font-black text-white leading-none">{id.split('-')[1]}</span>
+                                    {count > 1 && <span className="text-[9px] font-bold text-white/80">×{count}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p className="text-[10px] text-slate-400 text-center mt-3">Tap para quitar una</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0">
+                  <button onClick={() => setSobresStep('confirm')}
+                    disabled={Object.keys(sobresPending).length === 0}
+                    className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-40">
+                    Ver resumen →
+                  </button>
+                </div>
+              </>
+            )}
+
+            {sobresStep === 'confirm' && (() => {
+              const total  = Object.values(sobresPending).reduce((a,b)=>a+b,0);
+              const nuevas = Object.entries(sobresPending).filter(([id]) => (states[id] ?? 0) === 0).reduce((a,[,b])=>a+b,0);
+              const repet  = total - nuevas;
+              return (
+                <>
+                  <div className="flex-1 overflow-auto px-4 py-6 space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#1e293b" }}>
+                        <p className="text-3xl font-black text-white">{total}</p>
+                        <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#94a3b8" }}>Total</p>
+                      </div>
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#166534" }}>
+                        <p className="text-3xl font-black text-white">{nuevas}</p>
+                        <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#86efac" }}>Nuevas</p>
+                      </div>
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#E8A020" }}>
+                        <p className="text-3xl font-black text-white">{repet}</p>
+                        <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#fef3c7" }}>Repetidas</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 text-center">¿Todo correcto? Confirma para guardar en tu álbum.</p>
+                  </div>
+                  <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
+                    <button onClick={() => setSobresStep('scan')} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">← Editar</button>
+                    <button onClick={confirmSobres} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">
+                      ✓ Guardar {total} láminas
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── INTERCAMBIO ── */}
+        {showIntercambio && (
+          <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col overflow-auto">
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 px-4 pt-5 pb-4 sticky top-0 z-10 shadow-sm">
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-0.5">
+                    {intercambioStep === 1 ? "Paso 1 de 3" : intercambioStep === 2 ? "Paso 2 de 3" : "Paso 3 de 3"}
+                  </p>
+                  <h2 className="text-base font-extrabold text-slate-900">
+                    {intercambioStep === 1 ? "¿Qué entregas?" : intercambioStep === 2 ? "¿Qué recibes?" : "Resumen del intercambio"}
+                  </h2>
+                </div>
+                <button onClick={() => setShowIntercambio(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
+              </div>
+              {/* Step indicators */}
+              <div className="flex gap-1.5 mt-3">
+                {[1,2,3].map(s => (
+                  <div key={s} className={`flex-1 h-1 rounded-full transition-all ${intercambioStep >= s ? "bg-slate-900" : "bg-slate-200"}`}/>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 1: Entrego (solo repetidas) */}
+            {intercambioStep === 1 && (
+              <>
+                <div className="flex-1 overflow-auto px-4 py-4 pb-28 space-y-4">
+                  {Object.keys(tradeGive).length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-4">Toca las láminas repetidas que vas a entregar</p>
+                  )}
+                  {SECTIONS.map(sec => {
+                    const repeated = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) >= 2);
+                    if (!repeated.length) return null;
+                    return (
+                      <div key={sec.code} className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm">
+                        <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
+                          <span className="text-lg">{sec.flag}</span>
+                          <span className="text-xs font-black text-slate-900 font-mono">{sec.code}</span>
+                          <span className="text-xs text-slate-400 truncate">— {sec.name}</span>
+                        </div>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
+                          {repeated.map(s => {
+                            const st = states[s.id] ?? 0;
+                            const giving = tradeGive[s.id] ?? 0;
+                            const maxGive = st - 1;
+                            const selected = giving > 0;
+                            return (
+                              <div key={s.id} className="flex flex-col items-center gap-1">
+                                <button onClick={() => selected ? removeFromGive(s.id) : addToGive(s.id)}
+                                  style={{ backgroundColor: selected ? "#2E5FA3" : "#f1f5f9", borderColor: selected ? "#2E5FA3" : "#e2e8f0", color: selected ? "#fff" : "#64748b" }}
+                                  className="w-full rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono border-2">
+                                  <span className="text-[9px] font-semibold">{s.section}</span>
+                                  <span className="text-lg font-bold leading-none">{s.num}</span>
+                                  <span className="text-[8px] font-bold" style={{ color: selected ? "#93c5fd" : "#94a3b8" }}>
+                                    {giving > 0 ? `−${giving}` : `+${maxGive}`}
+                                  </span>
+                                </button>
+                                {giving < maxGive && giving > 0 && (
+                                  <button onClick={() => addToGive(s.id)} className="text-[9px] text-blue-500 font-bold">+más</button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
+                  <div className="flex-1 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 text-center">
+                    <p className="text-lg font-black text-slate-900">{Object.values(tradeGive).reduce((a,b)=>a+b,0)}</p>
+                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">a entregar</p>
+                  </div>
+                  <button onClick={() => setIntercambioStep(2)}
+                    disabled={Object.keys(tradeGive).length === 0}
+                    className="flex-[3] py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-40">
+                    Siguiente → ¿Qué recibes?
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Recibo */}
+            {intercambioStep === 2 && (
+              <>
+                <div className="flex-1 overflow-auto px-4 py-4 pb-28 space-y-5">
+                  {/* Faltantes primero */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">📋 Faltantes</span>
+                      <div className="flex-1 h-px bg-slate-200"/>
+                      <span className="text-[10px] text-slate-400">{ALL.filter(s=>(states[s.id]??0)===0).length}</span>
+                    </div>
+                    <div className="space-y-3">
+                      {SECTIONS.map(sec => {
+                        const missing = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) === 0);
+                        if (!missing.length) return null;
+                        return (
+                          <div key={sec.code} className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
+                              <span className="text-lg">{sec.flag}</span>
+                              <span className="text-xs font-black text-slate-900 font-mono">{sec.code}</span>
+                              <span className="text-xs text-slate-400 truncate">— {sec.name}</span>
+                            </div>
+                            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
+                              {missing.map(s => {
+                                const receiving = tradeReceive[s.id] ?? 0;
+                                return (
+                                  <button key={s.id} onClick={() => receiving > 0 ? removeFromReceive(s.id) : addToReceive(s.id)}
+                                    style={{ backgroundColor: receiving > 0 ? "#166534" : "#f1f5f9", borderColor: receiving > 0 ? "#166534" : "#e2e8f0", color: receiving > 0 ? "#fff" : "#64748b" }}
+                                    className="border-2 rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
+                                    <span className="text-[9px] font-semibold">{s.section}</span>
+                                    <span className="text-lg font-bold leading-none">{s.num}</span>
+                                    {receiving > 0 && <span className="text-[8px] font-bold text-green-300">+{receiving}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Ya tengo después */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">✅ Ya tengo</span>
+                      <div className="flex-1 h-px bg-slate-200"/>
+                    </div>
+                    <div className="space-y-3">
+                      {SECTIONS.map(sec => {
+                        const have = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) >= 1);
+                        if (!have.length) return null;
+                        return (
+                          <div key={`have-${sec.code}`} className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
+                              <span className="text-lg">{sec.flag}</span>
+                              <span className="text-xs font-black text-slate-900 font-mono">{sec.code}</span>
+                              <span className="text-xs text-slate-400 truncate">— {sec.name}</span>
+                            </div>
+                            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
+                              {have.map(s => {
+                                const receiving = tradeReceive[s.id] ?? 0;
+                                const cfg = stickerCfg(states[s.id] ?? 0);
+                                return (
+                                  <button key={s.id} onClick={() => receiving > 0 ? removeFromReceive(s.id) : addToReceive(s.id)}
+                                    style={{ backgroundColor: receiving > 0 ? "#6845A0" : cfg.bg, borderColor: receiving > 0 ? "#6845A0" : cfg.bg, color: "#fff" }}
+                                    className="border-2 rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
+                                    <span className="text-[9px] font-semibold" style={{ color: receiving > 0 ? "#d8b4fe" : cfg.sub }}>{s.section}</span>
+                                    <span className="text-lg font-bold leading-none">{s.num}</span>
+                                    {receiving > 0 && <span className="text-[8px] font-bold text-purple-300">+{receiving}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
+                  <button onClick={() => setIntercambioStep(1)} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">←</button>
+                  <div className="flex-1 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 text-center">
+                    <p className="text-lg font-black text-slate-900">{Object.values(tradeReceive).reduce((a,b)=>a+b,0)}</p>
+                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">a recibir</p>
+                  </div>
+                  <button onClick={() => setIntercambioStep(3)}
+                    disabled={Object.keys(tradeReceive).length === 0}
+                    className="flex-[2] py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-40">
+                    Ver resumen →
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 3: Resumen */}
+            {intercambioStep === 3 && (() => {
+              const totalGive    = Object.values(tradeGive).reduce((a,b)=>a+b,0);
+              const totalReceive = Object.values(tradeReceive).reduce((a,b)=>a+b,0);
+              const allChanged   = new Set([...Object.keys(tradeGive), ...Object.keys(tradeReceive)]);
+              return (
+                <>
+                  <div className="flex-1 overflow-auto px-4 py-4 pb-28 space-y-4">
+                    {/* Totales */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center shadow-sm">
+                        <p className="text-3xl font-black text-slate-900">{totalGive}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold mt-1">Entregas</p>
+                      </div>
+                      <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center shadow-sm">
+                        <p className="text-3xl font-black" style={{ color: "#5BAF48" }}>{totalReceive}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold mt-1">Recibes</p>
+                      </div>
+                    </div>
+
+                    {/* Detalle de cambios */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Cambios en tu álbum</h3>
+                      <div className="space-y-2">
+                        {Array.from(allChanged).map(id => {
+                          const sticker = ALL.find(s => s.id === id);
+                          if (!sticker) return null;
+                          const curSt   = states[id] ?? 0;
+                          const give    = tradeGive[id] ?? 0;
+                          const receive = tradeReceive[id] ?? 0;
+                          const newSt   = Math.min(4, Math.max(give > 0 ? 1 : 0, curSt - give + receive));
+                          const sec     = SECTIONS.find(s => s.code === sticker.section);
+                          const stateLabel = (st) => st === 0 ? "falta" : st === 1 ? "tengo" : st === 2 ? "+1" : st === 3 ? "×2" : "×3";
+                          return (
+                            <div key={id} className="flex items-center gap-3 py-1.5 border-b border-slate-50 last:border-0">
+                              <span className="text-base">{sec?.flag}</span>
+                              <span className="text-xs font-bold font-mono text-slate-700">{id}</span>
+                              <div className="ml-auto flex items-center gap-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{stateLabel(curSt)}</span>
+                                <span className="text-slate-300 text-xs">→</span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${newSt > curSt ? "bg-green-100 text-green-700" : "bg-blue-50 text-blue-700"}`}>{stateLabel(newSt)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
+                    <button onClick={() => setIntercambioStep(2)} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">←</button>
+                    <button onClick={confirmIntercambio}
+                      className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">
+                      ✓ Confirmar intercambio
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -611,6 +1309,8 @@ export default function App() {
               <button onClick={() => setShowGlobalStats(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
             </div>
             <div className="flex-1 overflow-auto p-4 space-y-4">
+
+              {/* Donut */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col items-center">
                 {(() => {
                   const R = 76, SW = 16, C = 2 * Math.PI * R;
@@ -623,25 +1323,132 @@ export default function App() {
                       <circle cx="100" cy="100" r={R} fill="none" stroke="#5BAF48" strokeWidth={SW}
                         strokeDasharray={C} strokeDashoffset={C * (1 - (gHave - gRepeat) / gTotal)}
                         transform="rotate(-90 100 100)" style={{ transition: "stroke-dashoffset 0.8s ease" }} />
-                      <text x="100" y="92" textAnchor="middle" fontSize="34" fontWeight="800" fill="#0F172A"
-                        fontFamily="'Plus Jakarta Sans',sans-serif">{pct}%</text>
-                      <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="700" fill="#94A3B8"
-                        fontFamily="'Plus Jakarta Sans',sans-serif" letterSpacing="2">COMPLETADO</text>
-                      <text x="100" y="128" textAnchor="middle" fontSize="10" fill="#CBD5E1"
-                        fontFamily="monospace">{gHave} / {gTotal}</text>
+                      <text x="100" y="92" textAnchor="middle" fontSize="34" fontWeight="800"
+                        fill="#0F172A" fontFamily="'Plus Jakarta Sans',sans-serif">{pct}%</text>
+                      <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="700"
+                        fill="#94A3B8" fontFamily="'Plus Jakarta Sans',sans-serif" letterSpacing="2">COMPLETADO</text>
+                      <text x="100" y="128" textAnchor="middle" fontSize="10"
+                        fill="#94A3B8" fontFamily="monospace">{gHave} / {gTotal}</text>
                     </svg>
                   );
                 })()}
                 <div className="flex gap-6 mt-2">
-                  {[["#5BAF48", gHave - gRepeat, "Tengo"], ["#E8A020", gRepeat, "Repet."], ["#E2E8F0", gMissing, "Faltan"]].map(([color, val, lbl]) => (
+                  {[["#5BAF48", gHave - gRepeat, "Tengo"], ["#E8A020", gRepeat, "Repet."], ["#64748b", gMissing, "Faltan"]].map(([color, val, lbl]) => (
                     <div key={lbl} className="flex flex-col items-center gap-1">
-                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color, border: color === "#E2E8F0" ? "1px solid #CBD5E1" : "none" }} />
+                      <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
                       <span className="text-sm font-extrabold text-slate-800">{val}</span>
                       <span className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">{lbl}</span>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {/* Proyección de sobres */}
+              {(() => {
+                if (gMissing === 0) return null;
+                const harmonicSum = (n) => { let s = 0; for (let i = 1; i <= n; i++) s += 1/i; return s; };
+                const expectedStickers = gTotal * harmonicSum(gMissing);
+                const optimistic = Math.ceil(gMissing / 7);
+                const realistic  = Math.ceil(expectedStickers / 7);
+                return (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">📦 Proyección de Sobres</h3>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="rounded-xl p-3 text-center" style={{ backgroundColor: "#2E5FA3" }}>
+                        <p className="text-2xl font-black text-white">{optimistic}</p>
+                        <p className="text-[9px] uppercase tracking-wide font-bold mt-0.5" style={{ color: "#93c5fd" }}>Optimista</p>
+                      </div>
+                      <div className="rounded-xl p-3 text-center" style={{ backgroundColor: "#E8A020" }}>
+                        <p className="text-2xl font-black text-white">{realistic}</p>
+                        <p className="text-[9px] uppercase tracking-wide font-bold mt-0.5" style={{ color: "#fef3c7" }}>Realista</p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 text-center">7 láminas por sobre · considera probabilidad de repetidas</p>
+                  </div>
+                );
+              })()}
+
+              {/* Progreso por grupo */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">📊 Progreso por Grupo</h3>
+                <div className="space-y-2">
+                  {(() => {
+                    const groupStats = GROUPS.map(grp => {
+                      const teams = TEAMS.filter(t => t.group === grp);
+                      const total = teams.length * 20;
+                      const have  = teams.reduce((a, t) => a + ALL.filter(s => s.section === t.code && (states[s.id] ?? 0) >= 1).length, 0);
+                      return { grp, total, have, pct: Math.round((have/total)*100) };
+                    }).sort((a,b) => b.pct - a.pct);
+
+                    return groupStats.map(({ grp, total, have, pct: gpct }) => (
+                      <div key={grp}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-slate-700">Grupo {grp}</span>
+                          <span className="text-xs font-bold text-slate-500 tabular-nums">{have}/{total} <span className="text-slate-400 font-normal">({gpct}%)</span></span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${gpct}%`, backgroundColor: gpct === 100 ? "#5BAF48" : gpct >= 75 ? "#2E5FA3" : gpct >= 50 ? "#E8A020" : "#E2E8F0" }}/>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Ranking secciones */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">🏆 Top 5 más completos</h3>
+                <div className="space-y-2">
+                  {(() => {
+                    return SECTIONS
+                      .map(sec => {
+                        const have = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) >= 1).length;
+                        return { ...sec, have, pct: Math.round((have/sec.total)*100) };
+                      })
+                      .sort((a,b) => b.pct - a.pct)
+                      .slice(0, 5)
+                      .map((sec, i) => (
+                        <div key={sec.code} className="flex items-center gap-3">
+                          <span className="text-[10px] font-black text-slate-400 w-4">{i+1}</span>
+                          <span className="text-base">{sec.flag}</span>
+                          <span className="text-xs font-bold text-slate-700 font-mono flex-1">{sec.code}</span>
+                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${sec.pct}%`, backgroundColor: sec.pct === 100 ? "#5BAF48" : "#2E5FA3" }}/>
+                          </div>
+                          <span className="text-xs font-bold text-slate-600 tabular-nums w-8 text-right">{sec.pct}%</span>
+                        </div>
+                      ));
+                  })()}
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">⚠️ Top 5 más incompletos</h3>
+                  <div className="space-y-2">
+                    {SECTIONS
+                      .map(sec => {
+                        const have = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) >= 1).length;
+                        return { ...sec, have, pct: Math.round((have/sec.total)*100) };
+                      })
+                      .filter(sec => sec.pct < 100)
+                      .sort((a,b) => a.pct - b.pct)
+                      .slice(0, 5)
+                      .map((sec, i) => (
+                        <div key={sec.code} className="flex items-center gap-3">
+                          <span className="text-[10px] font-black text-slate-400 w-4">{i+1}</span>
+                          <span className="text-base">{sec.flag}</span>
+                          <span className="text-xs font-bold text-slate-700 font-mono flex-1">{sec.code}</span>
+                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full bg-slate-300" style={{ width: `${sec.pct}%` }}/>
+                          </div>
+                          <span className="text-xs font-bold text-slate-400 tabular-nums w-8 text-right">{sec.pct}%</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+              </div>
+
+              {/* Dot map */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                 <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3">994 láminas en orden del álbum</p>
                 <div className="flex flex-wrap gap-[3px]">
@@ -652,6 +1459,7 @@ export default function App() {
                   })}
                 </div>
               </div>
+
             </div>
           </div>
         )}
@@ -666,6 +1474,11 @@ export default function App() {
                   {albums.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
                 <button onClick={() => setShowAlbumManager(true)} className="bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg font-bold">⚙️ Administrar</button>
+              <button onClick={() => setTheme(t => t === 'dark' ? 'light' : t === 'light' ? 'system' : 'dark')}
+                className="bg-slate-800 text-slate-300 px-2 py-1 rounded-lg font-bold text-sm"
+                title={`Tema: ${theme}`}>
+                {theme === 'dark' ? '🌙' : theme === 'light' ? '☀️' : '⚙'}
+              </button>
               </div>
               <button onClick={handleLogout} className="text-slate-400 font-bold hover:text-white uppercase tracking-wide text-[10px]">Salir ✕</button>
             </div>
@@ -710,6 +1523,18 @@ export default function App() {
                     onChange={e => setSearch(e.target.value)}
                     className="w-full bg-slate-50 text-slate-900 text-xs rounded-xl pl-8 pr-3 py-2.5 outline-none border border-slate-200 placeholder-slate-300 shadow-sm" />
                 </div>
+                <div className="flex gap-2 mt-2.5">
+                  <button onClick={startIntercambio}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white active:scale-95 transition-all"
+                    style={{ backgroundColor: "#5BAF48" }}>
+                    Intercambio
+                  </button>
+                  <button onClick={startSobres}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white active:scale-95 transition-all"
+                    style={{ backgroundColor: "#3D8B30" }}>
+                    Abrir Sobres
+                  </button>
+                </div>
               </div>
 
               <div className="hidden md:flex items-center gap-4 px-6 py-3">
@@ -744,6 +1569,16 @@ export default function App() {
                     onChange={e => setSearch(e.target.value)}
                     className="w-full bg-slate-50 text-slate-900 text-sm rounded-lg pl-8 pr-3 py-1.5 outline-none border border-slate-200 focus:border-slate-400 placeholder-slate-300" />
                 </div>
+                <button onClick={startIntercambio}
+                  className="px-4 py-1.5 rounded-lg font-bold text-sm text-white shrink-0 active:scale-95 transition-all"
+                  style={{ backgroundColor: "#5BAF48" }}>
+                  Intercambio
+                </button>
+                <button onClick={startSobres}
+                  className="px-4 py-1.5 rounded-lg font-bold text-sm text-white shrink-0 active:scale-95 transition-all"
+                  style={{ backgroundColor: "#3D8B30" }}>
+                  Abrir Sobres
+                </button>
               </div>
             </div>
 

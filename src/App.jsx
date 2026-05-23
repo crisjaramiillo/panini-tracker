@@ -134,6 +134,7 @@ export default function App() {
   const [sobresInput,          setSobresInput]          = useState('');
   const [sobresPending,        setSobresPending]        = useState({});
   const [sobresStep,           setSobresStep]           = useState('scan');
+  const [showSobresExplorer,   setShowSobresExplorer]   = useState(false);
   const [theme,                setTheme]                = useState(() => localStorage.getItem('panini_theme') || 'system');
   const [sectionComplete,      setSectionComplete]      = useState(null); // { code, name, flag }
   const [showAlbumComplete,    setShowAlbumComplete]    = useState(false);
@@ -184,6 +185,35 @@ export default function App() {
   };
 
   useEffect(() => { if (activeAlbumId) fetchStickers(activeAlbumId); }, [activeAlbumId]);
+
+  // ── REALTIME ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeAlbumId) return;
+    const channel = supabase
+      .channel(`album-${activeAlbumId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'stickers', filter: `album_id=eq.${activeAlbumId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const { sticker_id, state } = payload.new;
+            setStates(prev => {
+              const upd = { ...prev };
+              if (state > 0) upd[sticker_id] = state;
+              else delete upd[sticker_id];
+              return upd;
+            });
+          } else if (payload.eventType === 'DELETE') {
+            setStates(prev => {
+              const upd = { ...prev };
+              delete upd[payload.old.sticker_id];
+              return upd;
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeAlbumId]);
 
   // ── MODO OSCURO ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -750,26 +780,31 @@ export default function App() {
               <>
                 {/* Input */}
                 <div className="px-4 pt-4 pb-3 bg-white border-b border-slate-100">
-                  <p className="text-[11px] text-slate-400 mb-2">Escribe el código y presiona <strong>Enter</strong> o <strong>Espacio</strong></p>
+                  <p className="text-[11px] text-slate-400 mb-2">Escribe el código de sección — o toca <strong>Explorar</strong></p>
                   <div className="flex gap-2">
                     <input
+                      id="sobres-input"
                       type="text"
                       value={sobresInput}
-                      onChange={e => setSobresInput(e.target.value)}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setSobresInput(val);
+                        const query = val.trim().toUpperCase().replace(/[\s\-_]/g, '');
+                        if (query.length >= 2 && SECTIONS.find(s => s.code === query)) {
+                          setTimeout(() => document.getElementById('sobres-input')?.blur(), 50);
+                        }
+                      }}
                       onKeyDown={handleSobresInput}
-                      placeholder="ej: ARG5, MEX-12, fwc3..."
-                      autoFocus
+                      placeholder="ej: ARG, MEX, FWC..."
                       autoCapitalize="characters"
                       autoCorrect="off"
                       autoComplete="off"
                       spellCheck={false}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"
                     />
-                    <button onClick={() => {
-                      const id = parseStickerCode(sobresInput);
-                      if (id) { setSobresPending(prev => ({ ...prev, [id]: (prev[id] ?? 0) + 1 })); setSobresInput(''); }
-                    }} className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95">
-                      ✓
+                    <button onClick={() => setShowSobresExplorer(true)}
+                      className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap">
+                      🔍 Explorar
                     </button>
                   </div>
                   {/* Contadores en tiempo real */}
@@ -873,6 +908,76 @@ export default function App() {
                     );
                   })()}
                 </div>
+
+                {/* Explorer bottom sheet */}
+                {showSobresExplorer && (
+                  <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50 backdrop-blur-sm"
+                    onClick={() => setShowSobresExplorer(false)}>
+                    <div className="bg-white rounded-t-3xl max-h-[80vh] overflow-auto"
+                      onClick={e => e.stopPropagation()}>
+                      <div className="sticky top-0 bg-white px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                        <h3 className="text-base font-black text-slate-900">Seleccionar sección</h3>
+                        <button onClick={() => setShowSobresExplorer(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        {/* FWC */}
+                        <button onClick={() => { setSobresInput('FWC'); setShowSobresExplorer(false); }}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 active:scale-[0.98]">
+                          <span className="text-2xl">🏆</span>
+                          <div className="text-left">
+                            <p className="text-sm font-black text-slate-900">FWC</p>
+                            <p className="text-xs text-slate-500">FIFA World Cup</p>
+                          </div>
+                          <span className="ml-auto text-xs text-slate-400 font-mono">
+                            {ALL.filter(s=>s.section==="FWC"&&(states[s.id]??0)>=1).length}/20
+                          </span>
+                        </button>
+                        {/* Groups */}
+                        {GROUPS.map(grp => (
+                          <div key={grp}>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1 mb-2">Grupo {grp}</p>
+                            <div className="space-y-1.5">
+                              {TEAMS.filter(t => t.group === grp).map(t => {
+                                const have = ALL.filter(s=>s.section===t.code&&(states[s.id]??0)>=1).length;
+                                const done = have === 20;
+                                return (
+                                  <button key={t.code}
+                                    onClick={() => { setSobresInput(t.code); setShowSobresExplorer(false); }}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl active:scale-[0.98] border"
+                                    style={{ backgroundColor: done ? "#3D8B30" : "#f8fafc", borderColor: done ? "#3D8B30" : "#e2e8f0" }}>
+                                    <span className="text-xl">{t.flag}</span>
+                                    <div className="text-left flex-1 min-w-0">
+                                      <p className="text-sm font-black truncate" style={{ color: done ? "white" : "#0f172a" }}>{t.name}</p>
+                                      <p className="text-xs font-mono" style={{ color: done ? "rgba(255,255,255,0.7)" : "#94a3b8" }}>{t.code}</p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <p className="text-xs font-bold" style={{ color: done ? "rgba(255,255,255,0.9)" : "#64748b" }}>{have}/20</p>
+                                      <div className="w-10 h-1 rounded-full overflow-hidden mt-1" style={{ backgroundColor: done ? "rgba(255,255,255,0.3)" : "#e2e8f0" }}>
+                                        <div className="h-full rounded-full" style={{ width: `${(have/20)*100}%`, backgroundColor: done ? "rgba(255,255,255,0.9)" : "#5BAF48" }}/>
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        {/* CC */}
+                        <button onClick={() => { setSobresInput('CC'); setShowSobresExplorer(false); }}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 active:scale-[0.98]">
+                          <span className="text-2xl">🥤</span>
+                          <div className="text-left">
+                            <p className="text-sm font-black text-slate-900">CC</p>
+                            <p className="text-xs text-slate-500">Coca-Cola</p>
+                          </div>
+                          <span className="ml-auto text-xs text-slate-400 font-mono">
+                            {ALL.filter(s=>s.section==="CC"&&(states[s.id]??0)>=1).length}/14
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0">
                   <button onClick={() => setSobresStep('confirm')}

@@ -94,3 +94,72 @@ body {
   pointer-events: none;
   width: max-content;
 }
+
+/* ── RESPONSIVE LAYOUTS ─────────────────────────────────────────────────────── */
+
+/* Sticker grids — se adaptan solas según espacio */
+.sticker-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+@media (min-width: 640px) {
+  .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px; }
+}
+@media (min-width: 1024px) {
+  .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 12px; }
+}
+
+/* Stats: 2 columnas en desktop */
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+@media (min-width: 768px) {
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 24px;
+    align-items: start;
+  }
+}
+@media (min-width: 1280px) {
+  .stats-grid { grid-template-columns: repeat(3, 1fr); padding: 32px; }
+}
+
+/* Share/Logros: 2-3 columnas en desktop */
+.section-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .section-card-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+@media (min-width: 1280px) {
+  .section-card-list { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Padding responsivo en vistas */
+.view-px { padding-left: 16px; padding-right: 16px; }
+@media (min-width: 768px)  { .view-px { padding-left: 32px; padding-right: 32px; } }
+@media (min-width: 1024px) { .view-px { padding-left: 48px; padding-right: 48px; } }
+
+/* Intercambio/Sobres: header input + grid side by side en desktop */
+@media (min-width: 1024px) {
+  .trade-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100%;
+    overflow: hidden;
+  }
+  .trade-sidebar { overflow-y: auto; border-right: 1px solid #e2e8f0; }
+  .trade-main    { overflow-y: auto; }
+}

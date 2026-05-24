@@ -130,6 +130,7 @@ export default function App() {
   const [intercambioStep,      setIntercambioStep]      = useState(1);
   const [tradeGive,            setTradeGive]            = useState({});
   const [tradeReceive,         setTradeReceive]         = useState({});
+  const [intercambioQuery,     setIntercambioQuery]     = useState('');
   const [showSobres,           setShowSobres]           = useState(false);
   const [sobresInput,          setSobresInput]          = useState('');
   const [sobresPending,        setSobresPending]        = useState({});
@@ -138,7 +139,8 @@ export default function App() {
   const [theme,                setTheme]                = useState(() => localStorage.getItem('panini_theme') || 'system');
   const [sectionComplete,      setSectionComplete]      = useState(null); // { code, name, flag }
   const [showAlbumComplete,    setShowAlbumComplete]    = useState(false);
-  const [albumCompleteShown,   setAlbumCompleteShown]   = useState(false); // 'scan' | 'confirm'
+  const [albumCompleteShown,   setAlbumCompleteShown]   = useState(false);
+  const [achievements,         setAchievements]         = useState({});
 
   useEffect(() => {
     const savedUser = localStorage.getItem('tracker_user_email');
@@ -184,7 +186,17 @@ export default function App() {
     } catch (err) { console.error("fetchStickers error:", err); }
   };
 
-  useEffect(() => { if (activeAlbumId) fetchStickers(activeAlbumId); }, [activeAlbumId]);
+  useEffect(() => { if (activeAlbumId) { fetchStickers(activeAlbumId); fetchAchievements(activeAlbumId); } }, [activeAlbumId]);
+
+  const fetchAchievements = async (albumId) => {
+    if (!albumId) return;
+    const { data } = await supabase.from('achievements').select('section_code, completed_at').eq('album_id', albumId);
+    if (data) {
+      const dict = {};
+      data.forEach(r => { dict[r.section_code] = r.completed_at; });
+      setAchievements(dict);
+    }
+  };
 
   // ── REALTIME ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -320,28 +332,35 @@ export default function App() {
     finally { setLoading(false); }
   };
 
+  const triggerSectionToasts = (oldStates, newStates) => {
+    for (const sec of SECTIONS) {
+      const stickers = ALL.filter(s => s.section === sec.code);
+      const wasComplete = stickers.every(s => (oldStates[s.id] ?? 0) >= 1);
+      const nowComplete = stickers.every(s => (newStates[s.id] ?? 0) >= 1);
+      if (!wasComplete && nowComplete) {
+        setSectionComplete({ code: sec.code, name: sec.name, flag: sec.flag });
+        setTimeout(() => setSectionComplete(null), 3200);
+        const now = new Date().toISOString();
+        setAchievements(prev => ({ ...prev, [sec.code]: now }));
+        if (activeAlbumId) {
+          supabase.from('achievements')
+            .upsert({ album_id: activeAlbumId, section_code: sec.code, completed_at: now }, { onConflict: 'album_id,section_code' })
+            .then(() => {});
+        }
+        break;
+      }
+    }
+  };
+
   const toggle = useCallback(async (id) => {
     if (!activeAlbumId) return;
     const cur = states[id] ?? 0;
     const nxt = cur >= 4 ? 0 : cur + 1;
-    setStates(prev => {
-      const upd = { ...prev, [id]: nxt };
-      if (nxt === 0) delete upd[id];
-      // Detectar si se completó una sección
-      if (nxt === 1) {
-        const sticker = ALL.find(s => s.id === id);
-        if (sticker) {
-          const secStickers = ALL.filter(s => s.section === sticker.section);
-          const newHave = secStickers.filter(s => (s.id === id ? nxt : (upd[s.id] ?? 0)) >= 1).length;
-          if (newHave === secStickers.length) {
-            const sec = SECTIONS.find(s => s.code === sticker.section);
-            setSectionComplete(sec ? { code: sec.code, name: sec.name, flag: sec.flag } : null);
-            setTimeout(() => setSectionComplete(null), 3200);
-          }
-        }
-      }
-      return upd;
-    });
+    const oldStates = states;
+    const newStates = { ...states, [id]: nxt };
+    if (nxt === 0) delete newStates[id];
+    setStates(newStates);
+    triggerSectionToasts(oldStates, newStates);
     await supabase.from('stickers').upsert({ album_id: activeAlbumId, sticker_id: id, state: nxt }, { onConflict: 'album_id,sticker_id' });
   }, [states, activeAlbumId]);
 
@@ -390,19 +409,6 @@ export default function App() {
     });
   };
 
-  const triggerSectionToasts = (oldStates, newStates) => {
-    for (const sec of SECTIONS) {
-      const stickers = ALL.filter(s => s.section === sec.code);
-      const wasComplete = stickers.every(s => (oldStates[s.id] ?? 0) >= 1);
-      const nowComplete = stickers.every(s => (newStates[s.id] ?? 0) >= 1);
-      if (!wasComplete && nowComplete) {
-        setSectionComplete({ code: sec.code, name: sec.name, flag: sec.flag });
-        setTimeout(() => setSectionComplete(null), 3200);
-        break; // mostrar solo la primera (si hay varias, la más importante)
-      }
-    }
-  };
-
   const confirmSobres = async () => {
     setLoading(true);
     try {
@@ -433,12 +439,12 @@ export default function App() {
   const startSobres = () => {
     setSobresPending({}); setSobresInput(''); setSobresStep('scan'); setActiveSection(null); setShowSobres(true);
   };
-  const selectSection = useCallback((code) => { setActiveSection(code); setFilter("all"); setSearch(""); }, []);
+  const selectSection = useCallback((code) => { setActiveSection(code); setFilter("all"); setSearch(""); window.scrollTo(0, 0); }, []);
   const goBack = useCallback(() => { setActiveSection(null); }, []);
 
   // ── INTERCAMBIO ────────────────────────────────────────────────────────────
   const startIntercambio = () => {
-    setTradeGive({}); setTradeReceive({}); setIntercambioStep(1); setActiveSection(null); setShowIntercambio(true);
+    setTradeGive({}); setTradeReceive({}); setIntercambioStep(1); setIntercambioQuery(''); setActiveSection(null); setShowIntercambio(true);
   };
 
   const addToGive = (id) => {
@@ -848,7 +854,7 @@ export default function App() {
                             <span className="text-sm font-black text-slate-900">{matchedSec.name}</span>
                             <button onClick={() => setSobresInput('')} className="ml-auto text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded-lg">✕ limpiar</button>
                           </div>
-                          <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
+                          <div className="sticker-grid">
                             {secStickers.map(s => {
                               const pending  = sobresPending[s.id] ?? 0;
                               const curSt    = states[s.id] ?? 0;
@@ -887,7 +893,7 @@ export default function App() {
                         ) : (
                           <>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Láminas agregadas</p>
-                            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(66px, 1fr))" }}>
+                            <div className="sticker-grid">
                               {Object.entries(sobresPending).map(([id, count]) => {
                                 const isNew = (states[id] ?? 0) === 0;
                                 return (
@@ -1026,7 +1032,7 @@ export default function App() {
 
         {/* ── INTERCAMBIO ── */}
         {showIntercambio && (
-          <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col overflow-auto">
+          <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col overflow-auto" style={APP_FONT}>
             {/* Header */}
             <div className="bg-white border-b border-slate-200 px-4 pt-5 pb-4 sticky top-0 z-10 shadow-sm">
               <div className="flex items-center justify-between mb-1">
@@ -1048,161 +1054,238 @@ export default function App() {
               </div>
             </div>
 
-            {/* Step 1: Entrego (solo repetidas) */}
+            {/* Step 1: Entrego — browser de secciones */}
             {intercambioStep === 1 && (
               <>
-                <div className="flex-1 overflow-auto px-4 py-4 pb-28 space-y-4">
-                  {Object.keys(tradeGive).length === 0 && (
-                    <p className="text-xs text-slate-400 text-center py-4">Toca las láminas repetidas que vas a entregar</p>
-                  )}
-                  {SECTIONS.map(sec => {
-                    const repeated = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) >= 2);
-                    if (!repeated.length) return null;
+                <div className="px-4 pt-3 pb-2 bg-white border-b border-slate-100">
+                  <p className="text-[11px] text-slate-400 mb-2">Escribe el código de sección para ver tus repetidas</p>
+                  <div className="flex gap-2">
+                    <input id="trade-input-give" type="text" value={intercambioQuery}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setIntercambioQuery(val);
+                        const q = val.trim().toUpperCase().replace(/[\s\-_]/g, '');
+                        if (q.length >= 2 && SECTIONS.find(s => s.code === q))
+                          setTimeout(() => document.getElementById('trade-input-give')?.blur(), 50);
+                      }}
+                      placeholder="ej: ARG, MEX, FWC..."
+                      autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"/>
+                    <button onClick={() => setIntercambioQuery('')}
+                      className="bg-slate-100 text-slate-500 font-bold px-3 rounded-xl text-xs">✕</button>
+                  </div>
+                  {/* Contadores */}
+                  <div className="flex gap-2 mt-2.5">
+                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#2E5FA3"}}>
+                      <p className="text-lg font-black text-white">{Object.values(tradeGive).reduce((a,b)=>a+b,0)}</p>
+                      <p className="text-[9px] uppercase tracking-wide font-bold" style={{color:"#93c5fd"}}>A entregar</p>
+                    </div>
+                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#1e293b"}}>
+                      <p className="text-lg font-black text-white">{ALL.reduce((acc,s)=>{ const st=states[s.id]??0; return st>=2?acc+(st-1):acc; },0)}</p>
+                      <p className="text-[9px] uppercase tracking-wide font-bold" style={{color:"#94a3b8"}}>Disponibles</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-auto pb-28 view-px">
+                  {(() => {
+                    const query = intercambioQuery.trim().toUpperCase().replace(/[\s\-_]/g,'');
+                    const matchedSec = query.length >= 2 ? SECTIONS.find(s => s.code === query) : null;
+                    if (matchedSec) {
+                      const repeated = ALL.filter(s => s.section === matchedSec.code && (states[s.id] ?? 0) >= 2);
+                      return (
+                        <div className="px-4 pt-3">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">{matchedSec.flag}</span>
+                            <span className="text-sm font-black text-slate-900">{matchedSec.name}</span>
+                            {!repeated.length && <span className="text-xs text-slate-400 ml-1">Sin repetidas</span>}
+                          </div>
+                          {repeated.length > 0 && (
+                            <div className="sticker-grid">
+                              {repeated.map(s => {
+                                const st = states[s.id] ?? 0;
+                                const giving = tradeGive[s.id] ?? 0;
+                                const maxGive = st - 1;
+                                const cfg = stickerCfg(st);
+                                return (
+                                  <button key={s.id}
+                                    onClick={() => giving < maxGive ? addToGive(s.id) : removeFromGive(s.id)}
+                                    style={{backgroundColor: giving > 0 ? "#2E5FA3" : cfg.bg, color: giving > 0 ? "#fff" : cfg.text, borderColor: giving > 0 ? "#2E5FA3" : cfg.bg}}
+                                    className="border-2 rounded-xl h-16 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
+                                    <span className="text-[9px] font-semibold" style={{color: giving > 0 ? "#93c5fd" : cfg.sub}}>{s.section}</span>
+                                    <span className="text-xl font-black leading-none">{s.num}</span>
+                                    <span className="text-[9px] font-bold" style={{color: giving > 0 ? "#93c5fd" : cfg.sub}}>
+                                      {giving > 0 ? `−${giving}/${maxGive}` : `+${maxGive}`}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <p className="text-[10px] text-slate-400 text-center mt-3">Tap = entregar una · tap otra vez = deshacer</p>
+                        </div>
+                      );
+                    }
+                    const totalGiving = Object.values(tradeGive).reduce((a,b)=>a+b,0);
                     return (
-                      <div key={sec.code} className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm">
-                        <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
-                          <span className="text-lg">{sec.flag}</span>
-                          <span className="text-xs font-black text-slate-900 font-mono">{sec.code}</span>
-                          <span className="text-xs text-slate-400 truncate">— {sec.name}</span>
-                        </div>
-                        <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
-                          {repeated.map(s => {
-                            const st = states[s.id] ?? 0;
-                            const giving = tradeGive[s.id] ?? 0;
-                            const maxGive = st - 1;
-                            const selected = giving > 0;
-                            return (
-                              <div key={s.id} className="flex flex-col items-center gap-1">
-                                <button onClick={() => selected ? removeFromGive(s.id) : addToGive(s.id)}
-                                  style={{ backgroundColor: selected ? "#2E5FA3" : "#f1f5f9", borderColor: selected ? "#2E5FA3" : "#e2e8f0", color: selected ? "#fff" : "#64748b" }}
-                                  className="w-full rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono border-2">
-                                  <span className="text-[9px] font-semibold">{s.section}</span>
-                                  <span className="text-lg font-bold leading-none">{s.num}</span>
-                                  <span className="text-[8px] font-bold" style={{ color: selected ? "#93c5fd" : "#94a3b8" }}>
-                                    {giving > 0 ? `−${giving}` : `+${maxGive}`}
-                                  </span>
-                                </button>
-                                {giving < maxGive && giving > 0 && (
-                                  <button onClick={() => addToGive(s.id)} className="text-[9px] text-blue-500 font-bold">+más</button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                      <div className="px-4 pt-3">
+                        {totalGiving === 0 ? (
+                          <div className="text-center py-12">
+                            <p className="text-4xl mb-3">🔄</p>
+                            <p className="text-sm text-slate-500">Escribe el código de sección</p>
+                            <p className="text-xs text-slate-300 mt-1">ARG · MEX · BRA · FWC</p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Láminas a entregar</p>
+                            <div className="sticker-grid">
+                              {Object.entries(tradeGive).map(([id, count]) => {
+                                const st = states[id] ?? 0;
+                                const cfg = stickerCfg(st);
+                                return (
+                                  <button key={id} onClick={() => removeFromGive(id)}
+                                    className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 font-mono"
+                                    style={{backgroundColor:"#2E5FA3"}}>
+                                    <span className="text-[9px] font-bold text-blue-300">{id.split('-')[0]}</span>
+                                    <span className="text-lg font-black text-white leading-none">{id.split('-')[1]}</span>
+                                    {count > 1 && <span className="text-[9px] font-bold text-blue-300">×{count}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p className="text-[10px] text-slate-400 text-center mt-3">Tap para quitar</p>
+                          </>
+                        )}
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
-                <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
-                  <div className="flex-1 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 text-center">
-                    <p className="text-lg font-black text-slate-900">{Object.values(tradeGive).reduce((a,b)=>a+b,0)}</p>
-                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">a entregar</p>
-                  </div>
-                  <button onClick={() => setIntercambioStep(2)}
+                <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0">
+                  <button onClick={() => { setIntercambioStep(2); setIntercambioQuery(''); }}
                     disabled={Object.keys(tradeGive).length === 0}
-                    className="flex-[3] py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-40">
+                    className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-40">
                     Siguiente → ¿Qué recibes?
                   </button>
                 </div>
               </>
             )}
 
-            {/* Step 2: Recibo */}
+            {/* Step 2: Recibo — browser de secciones */}
             {intercambioStep === 2 && (
               <>
-                <div className="flex-1 overflow-auto px-4 py-4 pb-28 space-y-5">
-                  {/* Faltantes primero */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">📋 Faltantes</span>
-                      <div className="flex-1 h-px bg-slate-200"/>
-                      <span className="text-[10px] text-slate-400">{ALL.filter(s=>(states[s.id]??0)===0).length}</span>
-                    </div>
-                    <div className="space-y-3">
-                      {SECTIONS.map(sec => {
-                        const missing = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) === 0);
-                        if (!missing.length) return null;
-                        return (
-                          <div key={sec.code} className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm">
-                            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
-                              <span className="text-lg">{sec.flag}</span>
-                              <span className="text-xs font-black text-slate-900 font-mono">{sec.code}</span>
-                              <span className="text-xs text-slate-400 truncate">— {sec.name}</span>
-                            </div>
-                            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
-                              {missing.map(s => {
-                                const receiving = tradeReceive[s.id] ?? 0;
-                                return (
-                                  <button key={s.id} onClick={() => receiving > 0 ? removeFromReceive(s.id) : addToReceive(s.id)}
-                                    style={{ backgroundColor: receiving > 0 ? "#166534" : "#f1f5f9", borderColor: receiving > 0 ? "#166534" : "#e2e8f0", color: receiving > 0 ? "#fff" : "#64748b" }}
-                                    className="border-2 rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
-                                    <span className="text-[9px] font-semibold">{s.section}</span>
-                                    <span className="text-lg font-bold leading-none">{s.num}</span>
-                                    {receiving > 0 && <span className="text-[8px] font-bold text-green-300">+{receiving}</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div className="px-4 pt-3 pb-2 bg-white border-b border-slate-100">
+                  <p className="text-[11px] text-slate-400 mb-2">Escribe el código de sección · faltantes primero</p>
+                  <div className="flex gap-2">
+                    <input id="trade-input-recv" type="text" value={intercambioQuery}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setIntercambioQuery(val);
+                        const q = val.trim().toUpperCase().replace(/[\s\-_]/g, '');
+                        if (q.length >= 2 && SECTIONS.find(s => s.code === q))
+                          setTimeout(() => document.getElementById('trade-input-recv')?.blur(), 50);
+                      }}
+                      placeholder="ej: ARG, MEX, FWC..."
+                      autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"/>
+                    <button onClick={() => setIntercambioQuery('')}
+                      className="bg-slate-100 text-slate-500 font-bold px-3 rounded-xl text-xs">✕</button>
                   </div>
-
-                  {/* Ya tengo después */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">✅ Ya tengo</span>
-                      <div className="flex-1 h-px bg-slate-200"/>
+                  <div className="flex gap-2 mt-2.5">
+                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#166534"}}>
+                      <p className="text-lg font-black text-white">{Object.values(tradeReceive).reduce((a,b)=>a+b,0)}</p>
+                      <p className="text-[9px] uppercase tracking-wide font-bold" style={{color:"#86efac"}}>A recibir</p>
                     </div>
-                    <div className="space-y-3">
-                      {SECTIONS.map(sec => {
-                        const have = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) >= 1);
-                        if (!have.length) return null;
-                        return (
-                          <div key={`have-${sec.code}`} className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm">
-                            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
-                              <span className="text-lg">{sec.flag}</span>
-                              <span className="text-xs font-black text-slate-900 font-mono">{sec.code}</span>
-                              <span className="text-xs text-slate-400 truncate">— {sec.name}</span>
-                            </div>
-                            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
-                              {have.map(s => {
-                                const receiving = tradeReceive[s.id] ?? 0;
-                                const cfg = stickerCfg(states[s.id] ?? 0);
-                                return (
-                                  <button key={s.id} onClick={() => receiving > 0 ? removeFromReceive(s.id) : addToReceive(s.id)}
-                                    style={{ backgroundColor: receiving > 0 ? "#6845A0" : cfg.bg, borderColor: receiving > 0 ? "#6845A0" : cfg.bg, color: "#fff" }}
-                                    className="border-2 rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
-                                    <span className="text-[9px] font-semibold" style={{ color: receiving > 0 ? "#d8b4fe" : cfg.sub }}>{s.section}</span>
-                                    <span className="text-lg font-bold leading-none">{s.num}</span>
-                                    {receiving > 0 && <span className="text-[8px] font-bold text-purple-300">+{receiving}</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#2E5FA3"}}>
+                      <p className="text-lg font-black text-white">{Object.values(tradeGive).reduce((a,b)=>a+b,0)}</p>
+                      <p className="text-[9px] uppercase tracking-wide font-bold" style={{color:"#93c5fd"}}>Entregadas</p>
                     </div>
                   </div>
                 </div>
+                <div className="flex-1 overflow-auto pb-28 view-px">
+                  {(() => {
+                    const query = intercambioQuery.trim().toUpperCase().replace(/[\s\-_]/g,'');
+                    const matchedSec = query.length >= 2 ? SECTIONS.find(s => s.code === query) : null;
+                    if (matchedSec) {
+                      const secStickers = ALL.filter(s => s.section === matchedSec.code);
+                      const missing = secStickers.filter(s => (states[s.id]??0) === 0);
+                      const have = secStickers.filter(s => (states[s.id]??0) >= 1);
+                      const renderGrid = (stickers, label) => stickers.length === 0 ? null : (
+                        <div className="mb-4">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 px-1">{label}</p>
+                          <div className="sticker-grid">
+                            {stickers.map(s => {
+                              const receiving = tradeReceive[s.id] ?? 0;
+                              const isNew = (states[s.id]??0) === 0;
+                              const bgColor = receiving > 0 ? "#166534" : isNew ? "#f1f5f9" : stickerCfg(states[s.id]??0).bg;
+                              const txColor = receiving > 0 || !isNew ? "#fff" : "#64748b";
+                              return (
+                                <button key={s.id}
+                                  onClick={() => receiving > 0 ? removeFromReceive(s.id) : addToReceive(s.id)}
+                                  style={{backgroundColor: bgColor, color: txColor}}
+                                  className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
+                                  <span className="text-lg font-black leading-none">{s.num}</span>
+                                  {receiving > 0
+                                    ? <span className="text-[9px] font-bold" style={{color:"#86efac"}}>+{receiving}</span>
+                                    : <span className="text-[8px]" style={{color: isNew ? "#94a3b8" : "#fff"}}>{isNew?"falta":"tengo"}</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                      return (
+                        <div className="px-4 pt-3">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-lg">{matchedSec.flag}</span>
+                            <span className="text-sm font-black text-slate-900">{matchedSec.name}</span>
+                          </div>
+                          {renderGrid(missing, "📋 Faltantes")}
+                          {renderGrid(have, "✅ Ya tengo")}
+                          <p className="text-[10px] text-slate-400 text-center mt-1">Tap = agregar · tap otra vez = quitar</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="px-4 pt-3">
+                        {Object.keys(tradeReceive).length === 0 ? (
+                          <div className="text-center py-12">
+                            <p className="text-4xl mb-3">🎯</p>
+                            <p className="text-sm text-slate-500">Escribe el código de sección</p>
+                            <p className="text-xs text-slate-300 mt-1">ARG · MEX · BRA · FWC</p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Láminas a recibir</p>
+                            <div className="sticker-grid">
+                              {Object.entries(tradeReceive).map(([id, count]) => (
+                                <button key={id} onClick={() => removeFromReceive(id)}
+                                  className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 font-mono"
+                                  style={{backgroundColor:"#166534"}}>
+                                  <span className="text-[9px] font-bold text-green-300">{id.split('-')[0]}</span>
+                                  <span className="text-lg font-black text-white leading-none">{id.split('-')[1]}</span>
+                                  {count > 1 && <span className="text-[9px] font-bold text-green-300">×{count}</span>}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-[10px] text-slate-400 text-center mt-3">Tap para quitar</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
                 <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
-                  <button onClick={() => setIntercambioStep(1)} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">←</button>
-                  <div className="flex-1 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200 text-center">
-                    <p className="text-lg font-black text-slate-900">{Object.values(tradeReceive).reduce((a,b)=>a+b,0)}</p>
-                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">a recibir</p>
-                  </div>
+                  <button onClick={() => { setIntercambioStep(1); setIntercambioQuery(''); }}
+                    className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">←</button>
                   <button onClick={() => setIntercambioStep(3)}
                     disabled={Object.keys(tradeReceive).length === 0}
-                    className="flex-[2] py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-40">
+                    className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-40">
                     Ver resumen →
                   </button>
                 </div>
               </>
             )}
 
-            {/* Step 3: Resumen */}
+                        {/* Step 3: Resumen */}
             {intercambioStep === 3 && (() => {
               const totalGive    = Object.values(tradeGive).reduce((a,b)=>a+b,0);
               const totalReceive = Object.values(tradeReceive).reduce((a,b)=>a+b,0);
@@ -1275,7 +1358,8 @@ export default function App() {
               </div>
               <button onClick={() => setShowShare(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
             </div>
-            <div className="flex-1 overflow-auto px-4 py-4 space-y-4 mb-20">
+            <div className="flex-1 overflow-auto view-px py-4 space-y-4 mb-20">
+              <div className="section-card-list">
               {SECTIONS.map(sec => {
                 const sectionStickers = ALL.filter(s => s.section === sec.code && (
                   showShare === "missing" ? (states[s.id] ?? 0) === 0 : (states[s.id] ?? 0) >= 2
@@ -1289,7 +1373,7 @@ export default function App() {
                       <span className="text-xs text-slate-400 truncate">— {sec.name}</span>
                       <span className="ml-auto bg-slate-100 text-slate-600 font-mono text-[10px] font-bold px-2 py-0.5 rounded">{sectionStickers.length}</span>
                     </div>
-                    <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(58px, 1fr))" }}>
+                    <div className="sticker-grid">
                       {sectionStickers.map(s => {
                         const cfg = stickerCfg(states[s.id] ?? 0);
                         return (
@@ -1306,6 +1390,7 @@ export default function App() {
                   </div>
                 );
               })}
+              </div>
             </div>
             <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0">
               <a href={`whatsapp://send?text=${encodeURIComponent(buildShareText(showShare, states))}`}
@@ -1367,7 +1452,7 @@ export default function App() {
                 </div>
               </div>
               <div className="px-3 pt-3 pb-4">
-                <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(62px, 1fr))" }}>
+                <div className="sticker-grid">
                   {filtered.map(s => {
                     const cfg = stickerCfg(states[s.id] ?? 0);
                     return (
@@ -1413,7 +1498,7 @@ export default function App() {
               </div>
               <button onClick={() => setShowGlobalStats(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
             </div>
-            <div className="flex-1 overflow-auto p-4 space-y-4">
+            <div className="flex-1 overflow-auto stats-grid">
 
               {/* Donut */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col items-center">
@@ -1446,6 +1531,41 @@ export default function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Logros */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">🏅 Logros</h3>
+                  <span className="text-xs font-bold text-slate-500">
+                    {Object.keys(achievements).length}/{SECTIONS.length} secciones
+                  </span>
+                </div>
+                {Object.keys(achievements).length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">Completa una sección para desbloquear logros</p>
+                ) : (
+                  <div className="space-y-2">
+                    {SECTIONS.filter(sec => achievements[sec.code]).sort((a,b) =>
+                      new Date(achievements[b.code]) - new Date(achievements[a.code])
+                    ).map(sec => {
+                      const date = new Date(achievements[sec.code]);
+                      const dateStr = date.toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' });
+                      const timeStr = date.toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' });
+                      return (
+                        <div key={sec.code} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                          <span className="text-xl">{sec.flag}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 truncate">{sec.name}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">{sec.code} · {dateStr} {timeStr}</p>
+                          </div>
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{backgroundColor:"#5BAF48"}}>
+                            <span className="text-white text-xs font-black">✓</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Progreso por grupo */}
@@ -1539,7 +1659,6 @@ export default function App() {
                   })}
                 </div>
               </div>
-
             </div>
           </div>
         )}

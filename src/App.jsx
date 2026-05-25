@@ -880,7 +880,7 @@ export default function App() {
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"
                     />
                     <button onClick={() => setShowSobresExplorer(true)}
-                      className="text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap" style={{background:"linear-gradient(135deg,#1a3a8f,#4A90D9)"}}>\n                      🔍 Explorar
+                      className="text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap" style={{background:"linear-gradient(135deg,#1a3a8f,#4A90D9)"}}>🔍 Explorar
                     </button>
                   </div>
                   {/* Contadores en tiempo real */}
@@ -891,17 +891,17 @@ export default function App() {
                       const repet    = total - nuevas;
                       return (
                         <>
-                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#1e293b" }}>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ background: "#1e293b" }}>
                             <p className="text-xl font-black text-white">{total}</p>
                             <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#94a3b8" }}>Total</p>
                           </div>
-                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#0f172a" }}>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ background: "linear-gradient(135deg,#237661,#5BAF48)" }}>
                             <p className="text-xl font-black text-white">{nuevas}</p>
-                            <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#86efac" }}>Nuevas</p>
+                            <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "rgba(255,255,255,0.8)" }}>Nuevas</p>
                           </div>
-                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#0f172a" }}>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ background: "linear-gradient(135deg,#C8780A,#F5A623)" }}>
                             <p className="text-xl font-black text-white">{repet}</p>
-                            <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#fef3c7" }}>Repetidas</p>
+                            <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "rgba(255,255,255,0.8)" }}>Repetidas</p>
                           </div>
                         </>
                       );
@@ -1073,17 +1073,17 @@ export default function App() {
                 <>
                   <div className="flex-1 overflow-auto px-4 py-6 space-y-4">
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#1e293b" }}>
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ background: "#1e293b" }}>
                         <p className="text-3xl font-black text-white">{total}</p>
                         <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#94a3b8" }}>Total</p>
                       </div>
-                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#1e293b" }}>
-                        <p className="text-3xl font-black" style={{color:"#0f172a"}}>{nuevas}</p>
-                        <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#86efac" }}>Nuevas</p>
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ background: "linear-gradient(135deg,#237661,#5BAF48)" }}>
+                        <p className="text-3xl font-black text-white">{nuevas}</p>
+                        <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "rgba(255,255,255,0.8)" }}>Nuevas</p>
                       </div>
-                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#0f172a" }}>
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ background: "linear-gradient(135deg,#C8780A,#F5A623)" }}>
                         <p className="text-3xl font-black text-white">{repet}</p>
-                        <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#fef3c7" }}>Repetidas</p>
+                        <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "rgba(255,255,255,0.8)" }}>Repetidas</p>
                       </div>
                     </div>
                     <p className="text-xs text-slate-400 text-center">¿Todo correcto? Confirma para guardar en tu álbum.</p>
@@ -1549,9 +1549,9 @@ export default function App() {
           const next = secIdx < SECTIONS.length - 1 ? SECTIONS[secIdx + 1] : null;
 
           return (
-            <div className="min-h-screen bg-slate-50">
+            <div className="min-h-screen bg-slate-50" style={{paddingTop:0}}>
               {/* ✅ CAMBIO: cabecera rediseñada con bandera grande y nombre prominente */}
-              <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 pt-4 pb-3 shadow-sm">
+              <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 pt-4 pb-3 shadow-sm" style={{scrollMarginTop:0}}>
                 <div className="flex items-center justify-between mb-3">
                   <button onClick={goBack} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 font-bold">←</button>
                   <div className="text-right">
@@ -1791,7 +1791,7 @@ export default function App() {
                   {ALL.map(s => {
                     const st = states[s.id] ?? 0;
                     return <div key={s.id} className="w-2 h-2 rounded-sm"
-                      style={{ backgroundColor: st >= 2 ? "#475569" : st === 1 ? "#1e293b" : "#f1f5f9" }} />;
+                      style={{ backgroundColor: st >= 3 ? "#1a3a8f" : st === 2 ? "#E26502" : st === 1 ? "#237661" : "#f1f5f9" }} />;
                   })}
                 </div>
               </div>

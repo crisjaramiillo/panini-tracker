@@ -567,7 +567,8 @@ export default function App() {
         <div className="flex gap-[3px] flex-wrap pl-10 w-full">
           {countryStickers.map(s => {
             const st = states[s.id] ?? 0;
-            const dotColor = st >= 2 ? (done ? "rgba(255,255,255,0.8)" : "#475569") : st === 1 ? (done ? "rgba(255,255,255,0.95)" : "#1e293b") : (done ? "rgba(255,255,255,0.2)" : "#f1f5f9");
+            const tengoColor = sec.code === "FWC" ? "#C8921A" : sec.code === "CC" ? "#CC0000" : "#237661";
+            const dotColor = st >= 3 ? (done ? "rgba(255,255,255,0.8)" : "#1a3a8f") : st === 2 ? (done ? "rgba(255,255,255,0.8)" : "#E26502") : st === 1 ? (done ? "rgba(255,255,255,0.95)" : tengoColor) : (done ? "rgba(255,255,255,0.15)" : "#e2e8f0");
             return <div key={s.id} className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: dotColor }} />;
           })}
         </div>
@@ -1142,8 +1143,8 @@ export default function App() {
                       autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"/>
                     <button onClick={() => setShowTradeExplorer(true)}
-                      className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap">
-                      Explorar
+                      className="text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap" style={{background:"linear-gradient(135deg,#1a3a8f,#4A90D9)"}}>
+                      🔍 Explorar
                     </button>
                   </div>
                   {/* Contadores */}
@@ -1257,8 +1258,8 @@ export default function App() {
                       autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"/>
                     <button onClick={() => setShowTradeExplorer(true)}
-                      className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap">
-                      Explorar
+                      className="text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap" style={{background:"linear-gradient(135deg,#1a3a8f,#4A90D9)"}}>
+                      🔍 Explorar
                     </button>
                   </div>
                   <div className="flex gap-2 mt-2.5">
@@ -1637,14 +1638,14 @@ export default function App() {
                   return (
                     <svg width="200" height="200" viewBox="0 0 200 200">
                       <circle cx="100" cy="100" r={R} fill="none" stroke="#e2e8f0" strokeWidth={SW} />
-                      <circle cx="100" cy="100" r={R} fill="none" stroke="#475569" strokeWidth={SW}
+                      <circle cx="100" cy="100" r={R} fill="none" stroke="#E26502" strokeWidth={SW}
                         strokeDasharray={C} strokeDashoffset={C * (1 - gHave / gTotal)}
                         transform="rotate(-90 100 100)" style={{ transition: "stroke-dashoffset 0.8s ease" }} />
-                      <circle cx="100" cy="100" r={R} fill="none" stroke="#1e293b" strokeWidth={SW}
+                      <circle cx="100" cy="100" r={R} fill="none" stroke="#237661" strokeWidth={SW}
                         strokeDasharray={C} strokeDashoffset={C * (1 - (gHave - gRepeat) / gTotal)}
                         transform="rotate(-90 100 100)" style={{ transition: "stroke-dashoffset 0.8s ease" }} />
                       <text x="100" y="92" textAnchor="middle" fontSize="34" fontWeight="800"
-                        fill="#0F172A" fontFamily="'Plus Jakarta Sans',sans-serif">{pct}%</text>
+                        fill="#237661" fontFamily="'Plus Jakarta Sans',sans-serif">{pct}%</text>
                       <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="700"
                         fill="#94A3B8" fontFamily="'Plus Jakarta Sans',sans-serif" letterSpacing="2">COMPLETADO</text>
                       <text x="100" y="128" textAnchor="middle" fontSize="10"
@@ -1653,7 +1654,7 @@ export default function App() {
                   );
                 })()}
                 <div className="flex gap-6 mt-2">
-                  {[["#1e293b", gHave - gRepeat, "Tengo"], ["#475569", gRepeat, "Repet."], ["#f1f5f9", gMissing, "Faltan"]].map(([color, val, lbl]) => (
+                  {[["#237661", gHave - gRepeat, "Tengo"], ["#E26502", gRepeat, "Repet."], ["#f1f5f9", gMissing, "Faltan"]].map(([color, val, lbl]) => (
                     <div key={lbl} className="flex flex-col items-center gap-1">
                       <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
                       <span className="text-sm font-extrabold text-slate-800">{val}</span>
@@ -1668,7 +1669,7 @@ export default function App() {
                 onClick={() => setShowLogros(true)}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">🏅 Logros</h3>
-                  <span className="text-xs font-bold" style={{color:'#0f172a'}}>
+                  <span className="text-xs font-bold" style={{color:'#237661'}}>
                     {Object.keys(achievements).length}/{SECTIONS.length} · Ver todos →
                   </span>
                 </div>
@@ -1689,7 +1690,7 @@ export default function App() {
                               <p className="text-sm font-bold text-slate-800 truncate">{sec.name}</p>
                               <p className="text-[10px] text-slate-400">{sec.code} · {dateStr}</p>
                             </div>
-                            <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{backgroundColor:'#1e293b'}}>
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{background:'linear-gradient(135deg,#237661,#5BAF48)'}}>
                               <span className="text-white text-[9px] font-black">✓</span>
                             </div>
                           </div>
@@ -1826,7 +1827,7 @@ export default function App() {
                     <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">FIFA World Cup 2026</h1>
                   </div>
                   <button onClick={() => setShowGlobalStats(true)} className="text-right shrink-0 hover:opacity-80 active:scale-95 transition-all outline-none">
-                    <span className="text-4xl font-black tracking-tighter" style={{ color: "#0f172a" }}>{pct}%</span>
+                    <span className="text-4xl font-black tracking-tighter" style={{ color: "#237661" }}>{pct}%</span>
                     <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400 -mt-1">Completado ↗</p>
                   </button>
                 </div>
@@ -1891,7 +1892,7 @@ export default function App() {
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold underline">Repet. ↗</p>
                   </button>
                   <button onClick={() => setShowGlobalStats(true)} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
-                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#0f172a" }}>{pct}%</p>
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#237661" }}>{pct}%</p>
                     <div className="w-10 h-1 bg-slate-200 rounded-full overflow-hidden mx-auto mt-1">
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
                     </div>

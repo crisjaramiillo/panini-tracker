@@ -1184,7 +1184,7 @@ export default function App() {
                               return (
                                 <button key={s.id}
                                   onClick={() => giving < maxGive ? addToGive(s.id) : removeFromGive(s.id)}
-                                  style={{backgroundColor: sel ? "#0f172a" : cfg.bg, color: sel ? "#ffffff" : cfg.text, borderColor: sel ? "#0f172a" : cfg.bg}}
+                                  style={{background: sel ? "linear-gradient(135deg,#237661,#5BAF48)" : cfg.bg, color: sel ? "#ffffff" : cfg.text, borderColor: sel ? "#237661" : cfg.border}}
                                   className="border-2 rounded-xl h-16 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
                                   <span className="text-[9px] font-semibold" style={{color: sel ? "#fca5a5" : cfg.sub}}>{s.section}</span>
                                   <span className="text-xl font-black leading-none">{s.num}</span>

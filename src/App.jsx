@@ -71,12 +71,17 @@ const GROUPS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const APP_FONT = { fontFamily: "'Play', -apple-system, sans-serif" };
 
 // ✅ CAMBIO: labels muestran extras reales (+1/×2/×3)
-function stickerCfg(st) {
-  if (st === 0) return { bg: "#f1f5f9", text: "#64748b", sub: "#94a3b8", label: null };
-  if (st === 1) return { bg: "#1e293b", text: "#ffffff", sub: "#94a3b8", label: null };
-  if (st === 2) return { bg: "#475569", text: "#ffffff", sub: "#cbd5e1", label: "+1" };
-  if (st === 3) return { bg: "#334155", text: "#ffffff", sub: "#cbd5e1", label: "×2" };
-  return             { bg: "#1e293b", text: "#e2e8f0", sub: "#94a3b8", label: "×3" };
+function stickerCfg(st, sec = "") {
+  const tengo = sec === "FWC"
+    ? { bg: "linear-gradient(135deg,#7B5A00,#C8921A)", border: "#7B5A00", text: "#ffffff", sub: "rgba(255,255,255,0.7)" }
+    : sec === "CC"
+    ? { bg: "linear-gradient(135deg,#CC0000,#FF4444)", border: "#CC0000", text: "#ffffff", sub: "rgba(255,255,255,0.7)" }
+    : { bg: "linear-gradient(135deg,#237661,#5BAF48)", border: "#237661", text: "#ffffff", sub: "rgba(255,255,255,0.7)" };
+  if (st === 0) return { bg: "#f1f5f9", border: "#e2e8f0", text: "#64748b", sub: "#94a3b8", label: null };
+  if (st === 1) return { ...tengo, label: null };
+  if (st === 2) return { bg: "linear-gradient(135deg,#E26502,#F5A623)", border: "#E26502", text: "#ffffff", sub: "rgba(255,255,255,0.8)", label: "+1" };
+  if (st === 3) return { bg: "linear-gradient(135deg,#1a3a8f,#4A90D9)", border: "#1a3a8f", text: "#ffffff", sub: "rgba(255,255,255,0.8)", label: "×2" };
+  return             { bg: "linear-gradient(135deg,#0f2d6b,#2255BB)", border: "#0f2d6b", text: "#ffffff", sub: "rgba(255,255,255,0.8)", label: "×3" };
 }
 
 function buildShareText(type, states) {
@@ -1174,7 +1179,7 @@ export default function App() {
                               const st = states[s.id] ?? 0;
                               const giving = tradeGive[s.id] ?? 0;
                               const maxGive = st - 1;
-                              const cfg = stickerCfg(st);
+                              const cfg = stickerCfg(st, s.section);
                               const sel = giving > 0;
                               return (
                                 <button key={s.id}
@@ -1283,7 +1288,7 @@ export default function App() {
                             {stickers.map(s => {
                               const receiving = tradeReceive[s.id] ?? 0;
                               const isNew = (states[s.id]??0) === 0;
-                              const bgColor = receiving > 0 ? "#0f172a" : isNew ? "#f1f5f9" : stickerCfg(states[s.id]??0).bg;
+                              const bgColor = receiving > 0 ? "#0f172a" : isNew ? "#f1f5f9" : stickerCfg(states[s.id]??0, s.section).bg;
                               const txColor = receiving > 0 || !isNew ? "#fff" : "#64748b";
                               return (
                                 <button key={s.id}
@@ -1501,11 +1506,11 @@ export default function App() {
                     </div>
                     <div className="sticker-grid">
                       {sectionStickers.map(s => {
-                        const cfg = stickerCfg(states[s.id] ?? 0);
+                        const cfg = stickerCfg(states[s.id] ?? 0, s.section);
                         return (
                           // ✅ CAMBIO: toggleDown en vista repetidas (protege álbum)
                           <button key={s.id} onClick={() => showShare === "repeat" ? toggleDown(s.id) : toggle(s.id)}
-                            style={{ backgroundColor: cfg.bg, borderColor: cfg.bg, color: cfg.text }}
+                            style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.text }}
                             className="border-2 rounded-xl h-12 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
                             <span className="text-base font-bold leading-none">{s.num}</span>
                             {cfg.label && <span className="text-[8px] font-bold" style={{ color: cfg.sub }}>{cfg.label}</span>}
@@ -1580,11 +1585,11 @@ export default function App() {
               <div className="px-3 pt-3 pb-4">
                 <div className="sticker-grid">
                   {filtered.map(s => {
-                    const cfg = stickerCfg(states[s.id] ?? 0);
+                    const cfg = stickerCfg(states[s.id] ?? 0, s.section);
                     return (
                       // ✅ CAMBIO: toggleDown en tab Repet.
                       <button key={s.id} onClick={() => filter === "repeat" ? toggleDown(s.id) : toggle(s.id)}
-                        style={{ backgroundColor: cfg.bg, borderColor: cfg.bg, color: cfg.text }}
+                        style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.text }}
                         className="border-2 rounded-xl h-16 flex flex-col items-center justify-center active:scale-90 transition-all">
                         <span className="text-[9px] font-semibold font-mono" style={{ color: cfg.sub }}>{s.section}</span>
                         <span className="text-xl font-bold leading-none font-mono">{s.num}</span>

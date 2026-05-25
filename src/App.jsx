@@ -68,15 +68,15 @@ function buildStickers() {
 
 const ALL    = buildStickers();
 const GROUPS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
-const APP_FONT = { fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif" };
+const APP_FONT = { fontFamily: "'Play', -apple-system, sans-serif" };
 
 // ✅ CAMBIO: labels muestran extras reales (+1/×2/×3)
 function stickerCfg(st) {
-  if (st === 0) return { bg: "#f1f5f9", text: "#94a3b8", sub: "#94a3b8", label: null };
-  if (st === 1) return { bg: "#2E5FA3", text: "#ffffff", sub: "#93c5fd", label: null };
-  if (st === 2) return { bg: "#E8A020", text: "#ffffff", sub: "#fef3c7", label: "+1" };
-  if (st === 3) return { bg: "#E8572A", text: "#ffffff", sub: "#ffedd5", label: "×2" };
-  return             { bg: "#C0392B", text: "#ffffff", sub: "#ffe4e6", label: "×3" };
+  if (st === 0) return { bg: "#f1f5f9", text: "#64748b", sub: "#94a3b8", label: null };
+  if (st === 1) return { bg: "#1e293b", text: "#ffffff", sub: "#94a3b8", label: null };
+  if (st === 2) return { bg: "#475569", text: "#ffffff", sub: "#cbd5e1", label: "+1" };
+  if (st === 3) return { bg: "#334155", text: "#ffffff", sub: "#cbd5e1", label: "×2" };
+  return             { bg: "#1e293b", text: "#e2e8f0", sub: "#94a3b8", label: "×3" };
 }
 
 function buildShareText(type, states) {
@@ -136,11 +136,13 @@ export default function App() {
   const [sobresPending,        setSobresPending]        = useState({});
   const [sobresStep,           setSobresStep]           = useState('scan');
   const [showSobresExplorer,   setShowSobresExplorer]   = useState(false);
+  const [showTradeExplorer,    setShowTradeExplorer]    = useState(false); // shared between give/receive
   const [theme,                setTheme]                = useState(() => localStorage.getItem('panini_theme') || 'system');
   const [sectionComplete,      setSectionComplete]      = useState(null); // { code, name, flag }
   const [showAlbumComplete,    setShowAlbumComplete]    = useState(false);
   const [albumCompleteShown,   setAlbumCompleteShown]   = useState(false);
   const [achievements,         setAchievements]         = useState({});
+  const [showLogros,           setShowLogros]           = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('tracker_user_email');
@@ -535,11 +537,11 @@ export default function App() {
     const c = getCounts(sec.code);
     const spct = Math.round((c.have / sec.total) * 100);
     const done = spct === 100;
-    const doneBg = sec.code === "FWC" ? "#B8940A" : sec.code === "CC" ? "#C0392B" : "#3D8B30";
+    const doneBg = sec.code === "FWC" ? "linear-gradient(135deg,#7B5A00,#C8921A)" : sec.code === "CC" ? "linear-gradient(135deg,#CC0000,#FF4444)" : "linear-gradient(135deg,#237661,#5BAF48)";
     const countryStickers = ALL.filter(s => s.section === sec.code);
     return (
       <button key={sec.code} onClick={() => selectSection(sec.code)}
-        style={done ? { backgroundColor: doneBg } : {}}
+        style={done ? { background: doneBg } : {}}
         className={`w-full flex flex-col rounded-xl px-3 pt-2.5 pb-2 border shadow-sm text-left active:scale-[0.98] transition-all ${done ? "text-white border-0" : "bg-white border-slate-200"} ${sectionComplete?.code === sec.code ? "group-complete-pulse" : ""}`}>
         <div className="flex items-center gap-3 w-full mb-1.5">
           <span className="text-xl w-7 text-center shrink-0">{sec.flag}</span>
@@ -549,7 +551,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-14 h-2 rounded-full overflow-hidden" style={{ backgroundColor: done ? "rgba(255,255,255,0.25)" : "#f1f5f9" }}>
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spct}%`, backgroundColor: done ? "rgba(255,255,255,0.9)" : "#5BAF48" }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spct}%`, backgroundColor: done ? "rgba(255,255,255,0.9)" : "#1e293b" }} />
             </div>
             <span className={`text-xs w-9 text-right ${done ? "text-white font-bold" : "text-slate-700 font-bold"}`}>
               {c.have}<span className={done ? "text-white/60 font-normal" : "text-slate-400 font-normal"}>/{sec.total}</span>
@@ -560,7 +562,7 @@ export default function App() {
         <div className="flex gap-[3px] flex-wrap pl-10 w-full">
           {countryStickers.map(s => {
             const st = states[s.id] ?? 0;
-            const dotColor = st >= 2 ? (done ? "rgba(255,255,255,0.65)" : "#E8A020") : st === 1 ? (done ? "rgba(255,255,255,0.95)" : "#5BAF48") : (done ? "rgba(255,255,255,0.2)" : "#E2E8F0");
+            const dotColor = st >= 2 ? (done ? "rgba(255,255,255,0.8)" : "#475569") : st === 1 ? (done ? "rgba(255,255,255,0.95)" : "#1e293b") : (done ? "rgba(255,255,255,0.2)" : "#f1f5f9");
             return <div key={s.id} className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: dotColor }} />;
           })}
         </div>
@@ -689,7 +691,7 @@ export default function App() {
         {sectionComplete && (
           <div className="section-toast">
             <div style={{
-              background: 'linear-gradient(135deg, #166534, #3D8B30)',
+              background: 'linear-gradient(135deg,#237661,#5BAF48)',
               borderRadius: '16px',
               padding: '12px 20px',
               display: 'flex',
@@ -712,6 +714,70 @@ export default function App() {
           </div>
         )}
 
+        {/* ── LOGROS VISTA COMPLETA ── */}
+        {showLogros && (
+          <div className="fixed inset-0 z-40 bg-slate-50 flex flex-col overflow-auto">
+            <div className="bg-white border-b border-slate-200 px-4 pt-5 pb-4 flex items-center justify-between sticky top-0 shadow-sm">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-0.5">Progreso</p>
+                <h2 className="text-base font-black text-slate-900">🏅 Logros — {Object.keys(achievements).length}/{SECTIONS.length}</h2>
+              </div>
+              <button onClick={() => setShowLogros(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
+            </div>
+            <div className="flex-1 overflow-auto p-4 space-y-2">
+              {SECTIONS.filter(sec => achievements[sec.code])
+                .sort((a,b) => new Date(achievements[b.code]) - new Date(achievements[a.code]))
+                .map(sec => {
+                  const date = new Date(achievements[sec.code]);
+                  const dateStr = date.toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' });
+                  const timeStr = date.toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' });
+                  return (
+                    <div key={sec.code} className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3">
+                      <span className="text-2xl">{sec.flag}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-slate-900 truncate">{sec.name}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">{sec.code} · {dateStr} {timeStr}</p>
+                      </div>
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{background:'linear-gradient(135deg,#237661,#5BAF48)'}}>
+                        <span className="text-white text-xs font-black">✓</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              {Object.keys(achievements).length === 0 && (
+                <div className="text-center py-16">
+                  <p className="text-4xl mb-3">🏅</p>
+                  <p className="text-sm text-slate-400">Aún no has completado ninguna sección</p>
+                </div>
+              )}
+              {/* Secciones pendientes */}
+              {SECTIONS.filter(sec => !achievements[sec.code]).length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 px-1">Pendientes</p>
+                  {SECTIONS.filter(sec => !achievements[sec.code]).map(sec => {
+                    const have = ALL.filter(s => s.section === sec.code && (states[s.id]??0) >= 1).length;
+                    const pctSec = Math.round((have/sec.total)*100);
+                    return (
+                      <div key={sec.code} className="flex items-center gap-3 px-1 py-2 border-b border-slate-100 last:border-0">
+                        <span className="text-xl">{sec.flag}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-700 truncate">{sec.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
+                              <div className="h-full rounded-full" style={{width:`${pctSec}%`, backgroundColor:'#1e293b'}}/>
+                            </div>
+                            <span className="text-[9px] text-slate-400 tabular-nums">{have}/{sec.total}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── CELEBRACIÓN ÁLBUM COMPLETO ── */}
         {showAlbumComplete && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
@@ -723,7 +789,7 @@ export default function App() {
                 width:`${7+Math.random()*7}px`,
                 height:`${7+Math.random()*7}px`,
                 borderRadius:'2px',
-                backgroundColor:['#5BAF48','#2E5FA3','#E8A020','#E8572A','#6845A0','#FFD700'][i%6],
+                backgroundColor:['#1e293b','#0f172a','#0f172a','#475569','#374151','#FFD700'][i%6],
                 animation:`confettiFall ${2+Math.random()*3}s linear ${Math.random()*1.5}s forwards`,
                 pointerEvents:'none',
                 zIndex:201,
@@ -734,11 +800,11 @@ export default function App() {
               <h2 style={{fontSize:'24px',fontWeight:900,color:'#0f172a',margin:'0 0 4px'}}>¡Álbum Completo!</h2>
               <p style={{fontSize:'13px',color:'#94a3b8',margin:'0 0 20px'}}>FIFA World Cup 2026 · 994/994 láminas</p>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'20px'}}>
-                <div style={{backgroundColor:'#2E5FA3',borderRadius:'14px',padding:'14px 8px'}}>
+                <div style={{backgroundColor:'#0f172a',borderRadius:'14px',padding:'14px 8px'}}>
                   <p style={{fontSize:'22px',fontWeight:900,color:'white',margin:0}}>{gTotal}</p>
                   <p style={{fontSize:'9px',fontWeight:700,color:'#93c5fd',textTransform:'uppercase',letterSpacing:'0.1em',margin:'4px 0 0'}}>Láminas</p>
                 </div>
-                <div style={{backgroundColor:'#E8A020',borderRadius:'14px',padding:'14px 8px'}}>
+                <div style={{backgroundColor:'#0f172a',borderRadius:'14px',padding:'14px 8px'}}>
                   <p style={{fontSize:'22px',fontWeight:900,color:'white',margin:0}}>{gRepeat}</p>
                   <p style={{fontSize:'9px',fontWeight:700,color:'#fef3c7',textTransform:'uppercase',letterSpacing:'0.1em',margin:'4px 0 0'}}>Repetidas</p>
                 </div>
@@ -825,11 +891,11 @@ export default function App() {
                             <p className="text-xl font-black text-white">{total}</p>
                             <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#94a3b8" }}>Total</p>
                           </div>
-                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#166534" }}>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#0f172a" }}>
                             <p className="text-xl font-black text-white">{nuevas}</p>
                             <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#86efac" }}>Nuevas</p>
                           </div>
-                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#E8A020" }}>
+                          <div className="flex-1 rounded-xl py-2 text-center" style={{ backgroundColor: "#0f172a" }}>
                             <p className="text-xl font-black text-white">{repet}</p>
                             <p className="text-[9px] uppercase tracking-wide font-bold" style={{ color: "#fef3c7" }}>Repetidas</p>
                           </div>
@@ -859,9 +925,9 @@ export default function App() {
                               const pending  = sobresPending[s.id] ?? 0;
                               const curSt    = states[s.id] ?? 0;
                               const isNew    = curSt === 0;
-                              const bgColor  = pending > 0 ? "#2E5FA3" : isNew ? "#f1f5f9" : "#E8A020";
-                              const txColor  = pending > 0 || !isNew ? "#fff" : "#64748b";
-                              const subColor = pending > 0 ? "#93c5fd" : isNew ? "#94a3b8" : "#fef3c7";
+                              const bgColor  = pending > 0 ? "#0f172a" : isNew ? "#f1f5f9" : "#475569";
+                              const txColor  = pending > 0 ? "#ffffff" : !isNew ? "#FEFFFC" : "#0f172a";
+                              const subColor = pending > 0 ? "#94a3b8" : isNew ? "#94a3b8" : "#fed7aa";
                               return (
                                 <button key={s.id}
                                   onClick={() => setSobresPending(prev => ({ ...prev, [s.id]: (prev[s.id] ?? 0) + 1 }))}
@@ -899,7 +965,7 @@ export default function App() {
                                 return (
                                   <button key={id} onClick={() => removeSobresPending(id)}
                                     className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 transition-all font-mono"
-                                    style={{ backgroundColor: isNew ? "#166534" : "#E8A020" }}>
+                                    style={{ backgroundColor: isNew ? "#0f172a" : "#0f172a" }}>
                                     <span className="text-[9px] font-bold text-white/70">{id.split('-')[0]}</span>
                                     <span className="text-lg font-black text-white leading-none">{id.split('-')[1]}</span>
                                     {count > 1 && <span className="text-[9px] font-bold text-white/80">×{count}</span>}
@@ -950,7 +1016,7 @@ export default function App() {
                                   <button key={t.code}
                                     onClick={() => { setSobresInput(t.code); setShowSobresExplorer(false); }}
                                     className="w-full flex items-center gap-3 p-3 rounded-xl active:scale-[0.98] border"
-                                    style={{ backgroundColor: done ? "#3D8B30" : "#f8fafc", borderColor: done ? "#3D8B30" : "#e2e8f0" }}>
+                                    style={{ background: done ? "linear-gradient(135deg,#237661,#5BAF48)" : "#f8fafc", borderColor: done ? "transparent" : "#e2e8f0" }}>
                                     <span className="text-xl">{t.flag}</span>
                                     <div className="text-left flex-1 min-w-0">
                                       <p className="text-sm font-black truncate" style={{ color: done ? "white" : "#0f172a" }}>{t.name}</p>
@@ -959,7 +1025,7 @@ export default function App() {
                                     <div className="text-right shrink-0">
                                       <p className="text-xs font-bold" style={{ color: done ? "rgba(255,255,255,0.9)" : "#64748b" }}>{have}/20</p>
                                       <div className="w-10 h-1 rounded-full overflow-hidden mt-1" style={{ backgroundColor: done ? "rgba(255,255,255,0.3)" : "#e2e8f0" }}>
-                                        <div className="h-full rounded-full" style={{ width: `${(have/20)*100}%`, backgroundColor: done ? "rgba(255,255,255,0.9)" : "#5BAF48" }}/>
+                                        <div className="h-full rounded-full" style={{ width: `${(have/20)*100}%`, backgroundColor: done ? "rgba(255,255,255,0.9)" : "#1e293b" }}/>
                                       </div>
                                     </div>
                                   </button>
@@ -1007,11 +1073,11 @@ export default function App() {
                         <p className="text-3xl font-black text-white">{total}</p>
                         <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#94a3b8" }}>Total</p>
                       </div>
-                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#166534" }}>
-                        <p className="text-3xl font-black text-white">{nuevas}</p>
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#1e293b" }}>
+                        <p className="text-3xl font-black" style={{color:"#0f172a"}}>{nuevas}</p>
                         <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#86efac" }}>Nuevas</p>
                       </div>
-                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#E8A020" }}>
+                      <div className="rounded-2xl p-4 text-center shadow-sm" style={{ backgroundColor: "#0f172a" }}>
                         <p className="text-3xl font-black text-white">{repet}</p>
                         <p className="text-[10px] uppercase tracking-wide font-bold mt-1" style={{ color: "#fef3c7" }}>Repetidas</p>
                       </div>
@@ -1049,7 +1115,7 @@ export default function App() {
               {/* Step indicators */}
               <div className="flex gap-1.5 mt-3">
                 {[1,2,3].map(s => (
-                  <div key={s} className={`flex-1 h-1 rounded-full transition-all ${intercambioStep >= s ? "bg-slate-900" : "bg-slate-200"}`}/>
+                  <div key={s} className={`flex-1 h-1 rounded-full transition-all ${intercambioStep >= s ? "bg-[#0d0f24]" : "bg-slate-200"}`}/>
                 ))}
               </div>
             </div>
@@ -1071,12 +1137,14 @@ export default function App() {
                       placeholder="ej: ARG, MEX, FWC..."
                       autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"/>
-                    <button onClick={() => setIntercambioQuery('')}
-                      className="bg-slate-100 text-slate-500 font-bold px-3 rounded-xl text-xs">✕</button>
+                    <button onClick={() => setShowTradeExplorer(true)}
+                      className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap">
+                      Explorar
+                    </button>
                   </div>
                   {/* Contadores */}
                   <div className="flex gap-2 mt-2.5">
-                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#2E5FA3"}}>
+                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#0f172a",color:"#ffffff"}}>
                       <p className="text-lg font-black text-white">{Object.values(tradeGive).reduce((a,b)=>a+b,0)}</p>
                       <p className="text-[9px] uppercase tracking-wide font-bold" style={{color:"#93c5fd"}}>A entregar</p>
                     </div>
@@ -1090,71 +1158,69 @@ export default function App() {
                   {(() => {
                     const query = intercambioQuery.trim().toUpperCase().replace(/[\s\-_]/g,'');
                     const matchedSec = query.length >= 2 ? SECTIONS.find(s => s.code === query) : null;
-                    if (matchedSec) {
-                      const repeated = ALL.filter(s => s.section === matchedSec.code && (states[s.id] ?? 0) >= 2);
+
+                    const renderRepeatGrid = (sec) => {
+                      const repeated = ALL.filter(s => s.section === sec.code && (states[s.id] ?? 0) >= 2);
+                      if (!repeated.length) return null;
                       return (
-                        <div className="px-4 pt-3">
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="text-lg">{matchedSec.flag}</span>
-                            <span className="text-sm font-black text-slate-900">{matchedSec.name}</span>
-                            {!repeated.length && <span className="text-xs text-slate-400 ml-1">Sin repetidas</span>}
+                        <div key={sec.code} className="mb-5">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-base">{sec.flag}</span>
+                            <span className="text-xs font-black text-slate-700">{sec.name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">{sec.code}</span>
                           </div>
-                          {repeated.length > 0 && (
-                            <div className="sticker-grid">
-                              {repeated.map(s => {
-                                const st = states[s.id] ?? 0;
-                                const giving = tradeGive[s.id] ?? 0;
-                                const maxGive = st - 1;
-                                const cfg = stickerCfg(st);
-                                return (
-                                  <button key={s.id}
-                                    onClick={() => giving < maxGive ? addToGive(s.id) : removeFromGive(s.id)}
-                                    style={{backgroundColor: giving > 0 ? "#2E5FA3" : cfg.bg, color: giving > 0 ? "#fff" : cfg.text, borderColor: giving > 0 ? "#2E5FA3" : cfg.bg}}
-                                    className="border-2 rounded-xl h-16 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
-                                    <span className="text-[9px] font-semibold" style={{color: giving > 0 ? "#93c5fd" : cfg.sub}}>{s.section}</span>
-                                    <span className="text-xl font-black leading-none">{s.num}</span>
-                                    <span className="text-[9px] font-bold" style={{color: giving > 0 ? "#93c5fd" : cfg.sub}}>
-                                      {giving > 0 ? `−${giving}/${maxGive}` : `+${maxGive}`}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                          <p className="text-[10px] text-slate-400 text-center mt-3">Tap = entregar una · tap otra vez = deshacer</p>
+                          <div className="sticker-grid">
+                            {repeated.map(s => {
+                              const st = states[s.id] ?? 0;
+                              const giving = tradeGive[s.id] ?? 0;
+                              const maxGive = st - 1;
+                              const cfg = stickerCfg(st);
+                              const sel = giving > 0;
+                              return (
+                                <button key={s.id}
+                                  onClick={() => giving < maxGive ? addToGive(s.id) : removeFromGive(s.id)}
+                                  style={{backgroundColor: sel ? "#0f172a" : cfg.bg, color: sel ? "#ffffff" : cfg.text, borderColor: sel ? "#0f172a" : cfg.bg}}
+                                  className="border-2 rounded-xl h-16 flex flex-col items-center justify-center active:scale-90 transition-all font-mono">
+                                  <span className="text-[9px] font-semibold" style={{color: sel ? "#fca5a5" : cfg.sub}}>{s.section}</span>
+                                  <span className="text-xl font-black leading-none">{s.num}</span>
+                                  <span className="text-[9px] font-bold" style={{color: sel ? "#fca5a5" : cfg.sub}}>
+                                    {sel ? `\u2212${giving}/${maxGive}` : `+${maxGive}`}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    if (matchedSec) {
+                      const grid = renderRepeatGrid(matchedSec);
+                      return (
+                        <div className="pt-3">
+                          {grid || <p className="text-sm text-slate-400 text-center py-8">Sin repetidas en esta sección</p>}
+                          <p className="text-[10px] text-slate-400 text-center mt-1">Tap = entregar · tap otra vez = deshacer</p>
                         </div>
                       );
                     }
-                    const totalGiving = Object.values(tradeGive).reduce((a,b)=>a+b,0);
+
+                    const sectionsWithRepeats = SECTIONS.filter(sec =>
+                      ALL.some(s => s.section === sec.code && (states[s.id] ?? 0) >= 2)
+                    );
+
+                    if (sectionsWithRepeats.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <p className="text-4xl mb-3">😕</p>
+                          <p className="text-sm text-slate-500">No tienes láminas repetidas para entregar</p>
+                        </div>
+                      );
+                    }
+
                     return (
-                      <div className="px-4 pt-3">
-                        {totalGiving === 0 ? (
-                          <div className="text-center py-12">
-                            <p className="text-4xl mb-3">🔄</p>
-                            <p className="text-sm text-slate-500">Escribe el código de sección</p>
-                            <p className="text-xs text-slate-300 mt-1">ARG · MEX · BRA · FWC</p>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Láminas a entregar</p>
-                            <div className="sticker-grid">
-                              {Object.entries(tradeGive).map(([id, count]) => {
-                                const st = states[id] ?? 0;
-                                const cfg = stickerCfg(st);
-                                return (
-                                  <button key={id} onClick={() => removeFromGive(id)}
-                                    className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 font-mono"
-                                    style={{backgroundColor:"#2E5FA3"}}>
-                                    <span className="text-[9px] font-bold text-blue-300">{id.split('-')[0]}</span>
-                                    <span className="text-lg font-black text-white leading-none">{id.split('-')[1]}</span>
-                                    {count > 1 && <span className="text-[9px] font-bold text-blue-300">×{count}</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <p className="text-[10px] text-slate-400 text-center mt-3">Tap para quitar</p>
-                          </>
-                        )}
+                      <div className="pt-3">
+                        {sectionsWithRepeats.map(sec => renderRepeatGrid(sec))}
+                        <p className="text-[10px] text-slate-400 text-center py-3">Escribe un código para filtrar por sección</p>
                       </div>
                     );
                   })()}
@@ -1186,15 +1252,17 @@ export default function App() {
                       placeholder="ej: ARG, MEX, FWC..."
                       autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"/>
-                    <button onClick={() => setIntercambioQuery('')}
-                      className="bg-slate-100 text-slate-500 font-bold px-3 rounded-xl text-xs">✕</button>
+                    <button onClick={() => setShowTradeExplorer(true)}
+                      className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap">
+                      Explorar
+                    </button>
                   </div>
                   <div className="flex gap-2 mt-2.5">
-                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#166534"}}>
+                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#0f172a"}}>
                       <p className="text-lg font-black text-white">{Object.values(tradeReceive).reduce((a,b)=>a+b,0)}</p>
                       <p className="text-[9px] uppercase tracking-wide font-bold" style={{color:"#86efac"}}>A recibir</p>
                     </div>
-                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#2E5FA3"}}>
+                    <div className="flex-1 rounded-xl py-2 text-center" style={{backgroundColor:"#0f172a",color:"#ffffff"}}>
                       <p className="text-lg font-black text-white">{Object.values(tradeGive).reduce((a,b)=>a+b,0)}</p>
                       <p className="text-[9px] uppercase tracking-wide font-bold" style={{color:"#93c5fd"}}>Entregadas</p>
                     </div>
@@ -1215,7 +1283,7 @@ export default function App() {
                             {stickers.map(s => {
                               const receiving = tradeReceive[s.id] ?? 0;
                               const isNew = (states[s.id]??0) === 0;
-                              const bgColor = receiving > 0 ? "#166534" : isNew ? "#f1f5f9" : stickerCfg(states[s.id]??0).bg;
+                              const bgColor = receiving > 0 ? "#0f172a" : isNew ? "#f1f5f9" : stickerCfg(states[s.id]??0).bg;
                               const txColor = receiving > 0 || !isNew ? "#fff" : "#64748b";
                               return (
                                 <button key={s.id}
@@ -1259,7 +1327,7 @@ export default function App() {
                               {Object.entries(tradeReceive).map(([id, count]) => (
                                 <button key={id} onClick={() => removeFromReceive(id)}
                                   className="rounded-xl h-14 flex flex-col items-center justify-center active:scale-90 font-mono"
-                                  style={{backgroundColor:"#166534"}}>
+                                  style={{backgroundColor:"#0f172a"}}>
                                   <span className="text-[9px] font-bold text-green-300">{id.split('-')[0]}</span>
                                   <span className="text-lg font-black text-white leading-none">{id.split('-')[1]}</span>
                                   {count > 1 && <span className="text-[9px] font-bold text-green-300">×{count}</span>}
@@ -1300,7 +1368,7 @@ export default function App() {
                         <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold mt-1">Entregas</p>
                       </div>
                       <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center shadow-sm">
-                        <p className="text-3xl font-black" style={{ color: "#5BAF48" }}>{totalReceive}</p>
+                        <p className="text-3xl font-black" style={{ color: "#0f172a" }}>{totalReceive}</p>
                         <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold mt-1">Recibes</p>
                       </div>
                     </div>
@@ -1345,6 +1413,64 @@ export default function App() {
             })()}
           </div>
         )}
+
+
+            {/* Trade Explorer bottom sheet */}
+            {showTradeExplorer && (
+              <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50 backdrop-blur-sm"
+                onClick={() => setShowTradeExplorer(false)}>
+                <div className="bg-white rounded-t-3xl max-h-[80vh] overflow-auto"
+                  onClick={e => e.stopPropagation()}>
+                  <div className="sticky top-0 bg-white px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="text-base font-black text-slate-900">Seleccionar sección</h3>
+                    <button onClick={() => setShowTradeExplorer(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold">✕</button>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <button onClick={() => { setIntercambioQuery('FWC'); setShowTradeExplorer(false); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 active:scale-[0.98]">
+                      <span className="text-2xl">🏆</span>
+                      <div className="text-left flex-1"><p className="text-sm font-black text-slate-900">FWC · FIFA World Cup</p></div>
+                      <span className="text-xs text-slate-400 font-mono">{ALL.filter(s=>s.section==="FWC"&&(states[s.id]??0)>=1).length}/20</span>
+                    </button>
+                    {GROUPS.map(grp => (
+                      <div key={grp}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1 mb-2">Grupo {grp}</p>
+                        <div className="space-y-1.5">
+                          {TEAMS.filter(t => t.group === grp).map(t => {
+                            const have = ALL.filter(s=>s.section===t.code&&(states[s.id]??0)>=1).length;
+                            const done = have === 20;
+                            return (
+                              <button key={t.code}
+                                onClick={() => { setIntercambioQuery(t.code); setShowTradeExplorer(false); }}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl active:scale-[0.98] border"
+                                style={{background:done?'linear-gradient(135deg,#237661,#5BAF48)':'#f8fafc',borderColor:done?'transparent':'#e2e8f0'}}>
+                                <span className="text-xl">{t.flag}</span>
+                                <div className="text-left flex-1 min-w-0">
+                                  <p className="text-sm font-black truncate" style={{color:done?'#ffffff':'#0f172a'}}>{t.name}</p>
+                                  <p className="text-xs font-mono" style={{color:done?'rgba(26,20,0,0.6)':'#94a3b8'}}>{t.code}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs font-bold" style={{color:done?'#ffffff':'#64748b'}}>{have}/20</p>
+                                  <div className="w-10 h-1 rounded-full overflow-hidden mt-1" style={{backgroundColor:done?'rgba(255,255,255,0.2)':'#f1f5f9'}}>
+                                    <div className="h-full rounded-full" style={{width:`${(have/20)*100}%`,backgroundColor:done?'rgba(255,255,255,0.9)':'#1e293b'}}/>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <button onClick={() => { setIntercambioQuery('CC'); setShowTradeExplorer(false); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 active:scale-[0.98]">
+                      <span className="text-2xl">🥤</span>
+                      <div className="text-left flex-1"><p className="text-sm font-black text-slate-900">CC · Coca-Cola</p></div>
+                      <span className="text-xs text-slate-400 font-mono">{ALL.filter(s=>s.section==="CC"&&(states[s.id]??0)>=1).length}/14</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
         {/* Share view */}
         {(showShare === "missing" || showShare === "repeat") && (
@@ -1440,9 +1566,9 @@ export default function App() {
                   </div>
                 </div>
                 {/* ✅ CAMBIO: barra h-3 más gruesa */}
-                <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-3">
+                <div className="h-3 rounded-full overflow-hidden mb-3" style={{backgroundColor:"#f1f5f9"}}>
                   <div className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${spct}%`, backgroundColor: spct === 100 ? "#5BAF48" : "#2E5FA3" }} />
+                    style={{ width: `${spct}%`, backgroundColor: spct === 100 ? "#0f172a" : "#94a3b8" }} />
                 </div>
                 <div className="flex gap-1">
                   {[["all","Todas"],["have","Tengo"],["missing","Faltan"],["repeat","Repet."]].map(([k,l]) => (
@@ -1506,11 +1632,11 @@ export default function App() {
                   const R = 76, SW = 16, C = 2 * Math.PI * R;
                   return (
                     <svg width="200" height="200" viewBox="0 0 200 200">
-                      <circle cx="100" cy="100" r={R} fill="none" stroke="#E2E8F0" strokeWidth={SW} />
-                      <circle cx="100" cy="100" r={R} fill="none" stroke="#E8A020" strokeWidth={SW}
+                      <circle cx="100" cy="100" r={R} fill="none" stroke="#e2e8f0" strokeWidth={SW} />
+                      <circle cx="100" cy="100" r={R} fill="none" stroke="#475569" strokeWidth={SW}
                         strokeDasharray={C} strokeDashoffset={C * (1 - gHave / gTotal)}
                         transform="rotate(-90 100 100)" style={{ transition: "stroke-dashoffset 0.8s ease" }} />
-                      <circle cx="100" cy="100" r={R} fill="none" stroke="#5BAF48" strokeWidth={SW}
+                      <circle cx="100" cy="100" r={R} fill="none" stroke="#1e293b" strokeWidth={SW}
                         strokeDasharray={C} strokeDashoffset={C * (1 - (gHave - gRepeat) / gTotal)}
                         transform="rotate(-90 100 100)" style={{ transition: "stroke-dashoffset 0.8s ease" }} />
                       <text x="100" y="92" textAnchor="middle" fontSize="34" fontWeight="800"
@@ -1523,7 +1649,7 @@ export default function App() {
                   );
                 })()}
                 <div className="flex gap-6 mt-2">
-                  {[["#5BAF48", gHave - gRepeat, "Tengo"], ["#E8A020", gRepeat, "Repet."], ["#64748b", gMissing, "Faltan"]].map(([color, val, lbl]) => (
+                  {[["#1e293b", gHave - gRepeat, "Tengo"], ["#475569", gRepeat, "Repet."], ["#f1f5f9", gMissing, "Faltan"]].map(([color, val, lbl]) => (
                     <div key={lbl} className="flex flex-col items-center gap-1">
                       <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
                       <span className="text-sm font-extrabold text-slate-800">{val}</span>
@@ -1534,36 +1660,42 @@ export default function App() {
               </div>
 
               {/* Logros */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm cursor-pointer"
+                onClick={() => setShowLogros(true)}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">🏅 Logros</h3>
-                  <span className="text-xs font-bold text-slate-500">
-                    {Object.keys(achievements).length}/{SECTIONS.length} secciones
+                  <span className="text-xs font-bold" style={{color:'#0f172a'}}>
+                    {Object.keys(achievements).length}/{SECTIONS.length} · Ver todos →
                   </span>
                 </div>
                 {Object.keys(achievements).length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-4">Completa una sección para desbloquear logros</p>
                 ) : (
                   <div className="space-y-2">
-                    {SECTIONS.filter(sec => achievements[sec.code]).sort((a,b) =>
-                      new Date(achievements[b.code]) - new Date(achievements[a.code])
-                    ).map(sec => {
-                      const date = new Date(achievements[sec.code]);
-                      const dateStr = date.toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' });
-                      const timeStr = date.toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' });
-                      return (
-                        <div key={sec.code} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                          <span className="text-xl">{sec.flag}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-800 truncate">{sec.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">{sec.code} · {dateStr} {timeStr}</p>
+                    {SECTIONS.filter(sec => achievements[sec.code])
+                      .sort((a,b) => new Date(achievements[b.code]) - new Date(achievements[a.code]))
+                      .slice(0, 3)
+                      .map(sec => {
+                        const date = new Date(achievements[sec.code]);
+                        const dateStr = date.toLocaleDateString('es-CL', { day:'numeric', month:'short' });
+                        return (
+                          <div key={sec.code} className="flex items-center gap-3 py-1.5">
+                            <span className="text-xl">{sec.flag}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-slate-800 truncate">{sec.name}</p>
+                              <p className="text-[10px] text-slate-400">{sec.code} · {dateStr}</p>
+                            </div>
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{backgroundColor:'#1e293b'}}>
+                              <span className="text-white text-[9px] font-black">✓</span>
+                            </div>
                           </div>
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{backgroundColor:"#5BAF48"}}>
-                            <span className="text-white text-xs font-black">✓</span>
-                          </div>
-                        </div>
-                      );
+                        );
                     })}
+                    {Object.keys(achievements).length > 3 && (
+                      <p className="text-[11px] text-center font-bold pt-1" style={{color:'#374151'}}>
+                        +{Object.keys(achievements).length - 3} más →
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1586,9 +1718,9 @@ export default function App() {
                           <span className="text-xs font-bold text-slate-700">Grupo {grp}</span>
                           <span className="text-xs font-bold text-slate-500 tabular-nums">{have}/{total} <span className="text-slate-400 font-normal">({gpct}%)</span></span>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
                           <div className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${gpct}%`, backgroundColor: gpct === 100 ? "#5BAF48" : gpct >= 75 ? "#2E5FA3" : gpct >= 50 ? "#E8A020" : "#E2E8F0" }}/>
+                            style={{ width: `${gpct}%`, backgroundColor: gpct === 100 ? "#0f172a" : gpct >= 75 ? "#1e293b" : gpct >= 50 ? "#1e293b" : "#f1f5f9" }}/>
                         </div>
                       </div>
                     ));
@@ -1613,8 +1745,8 @@ export default function App() {
                           <span className="text-[10px] font-black text-slate-400 w-4">{i+1}</span>
                           <span className="text-base">{sec.flag}</span>
                           <span className="text-xs font-bold text-slate-700 font-mono flex-1">{sec.code}</span>
-                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: `${sec.pct}%`, backgroundColor: sec.pct === 100 ? "#5BAF48" : "#2E5FA3" }}/>
+                          <div className="w-24 h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
+                            <div className="h-full rounded-full" style={{ width: `${sec.pct}%`, backgroundColor: sec.pct === 100 ? "#0f172a" : "#94a3b8" }}/>
                           </div>
                           <span className="text-xs font-bold text-slate-600 tabular-nums w-8 text-right">{sec.pct}%</span>
                         </div>
@@ -1637,7 +1769,7 @@ export default function App() {
                           <span className="text-[10px] font-black text-slate-400 w-4">{i+1}</span>
                           <span className="text-base">{sec.flag}</span>
                           <span className="text-xs font-bold text-slate-700 font-mono flex-1">{sec.code}</span>
-                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="w-24 h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
                             <div className="h-full rounded-full bg-slate-300" style={{ width: `${sec.pct}%` }}/>
                           </div>
                           <span className="text-xs font-bold text-slate-400 tabular-nums w-8 text-right">{sec.pct}%</span>
@@ -1655,7 +1787,7 @@ export default function App() {
                   {ALL.map(s => {
                     const st = states[s.id] ?? 0;
                     return <div key={s.id} className="w-2 h-2 rounded-sm"
-                      style={{ backgroundColor: st >= 2 ? "#E8A020" : st === 1 ? "#5BAF48" : "#E2E8F0" }} />;
+                      style={{ backgroundColor: st >= 2 ? "#475569" : st === 1 ? "#1e293b" : "#f1f5f9" }} />;
                   })}
                 </div>
               </div>
@@ -1666,23 +1798,23 @@ export default function App() {
         {/* Overview Home */}
         {!activeSection && !showGlobalStats && showShare !== "missing" && showShare !== "repeat" && (
           <div className="min-h-screen bg-slate-50">
-            <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
+            <div className="bg-[#0d0f24] text-white px-4 py-2.5 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 min-w-0">
                 <select value={activeAlbumId} onChange={e => setActiveAlbumId(e.target.value)}
-                  className="bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 text-xs outline-none font-bold max-w-[160px]">
+                  className="bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 text-xs outline-none font-bold min-w-0 max-w-[45vw] truncate">
                   {albums.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
-                <button onClick={() => setShowAlbumManager(true)} className="bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg font-bold">⚙️ Administrar</button>
+                <button onClick={() => setShowAlbumManager(true)} className="bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg font-bold shrink-0">⚙️ Ajustes</button>
               <button onClick={() => setTheme(t => t === 'dark' ? 'light' : t === 'light' ? 'system' : 'dark')}
-                className="bg-slate-800 text-slate-300 px-2 py-1 rounded-lg font-bold text-sm"
+                className="bg-slate-800 text-slate-300 px-2 py-1 rounded-lg font-bold text-sm shrink-0"
                 title={`Tema: ${theme}`}>
                 {theme === 'dark' ? '🌙' : theme === 'light' ? '☀️' : '⚙'}
               </button>
               </div>
-              <button onClick={handleLogout} className="text-slate-400 font-bold hover:text-white uppercase tracking-wide text-[10px]">Salir ✕</button>
+              <button onClick={handleLogout} className="text-slate-400 font-bold hover:text-white uppercase tracking-wide text-[10px] shrink-0 ml-2">Salir ✕</button>
             </div>
 
-            <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
+            <div className="sticky top-0 z-10 header-glass">
               <div className="md:hidden px-4 pt-5 pb-4">
                 <div className="flex items-baseline justify-between mb-3">
                   <div>
@@ -1690,16 +1822,16 @@ export default function App() {
                     <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">FIFA World Cup 2026</h1>
                   </div>
                   <button onClick={() => setShowGlobalStats(true)} className="text-right shrink-0 hover:opacity-80 active:scale-95 transition-all outline-none">
-                    <span className="text-4xl font-black tracking-tighter" style={{ color: "#5BAF48" }}>{pct}%</span>
+                    <span className="text-4xl font-black tracking-tighter" style={{ color: "#0f172a" }}>{pct}%</span>
                     <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400 -mt-1">Completado ↗</p>
                   </button>
                 </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: "#5BAF48" }} />
+                <div className="h-2 rounded-full overflow-hidden mb-4" style={{backgroundColor:"#f1f5f9"}}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: pct === 100 ? "#0f172a" : "#94a3b8" }} />
                 </div>
                 <div className="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-2xl px-2 py-2 mb-3.5">
                   <div className="flex-1 flex items-center justify-center gap-1.5 py-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor:"#1e293b"}} />
                     <span className="font-mono font-black text-slate-800 text-xl">{gHave}</span>
                     <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Tengo</span>
                   </div>
@@ -1711,7 +1843,7 @@ export default function App() {
                   </button>
                   <div className="w-px h-4 bg-slate-200" />
                   <button onClick={() => setShowShare("repeat")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl active:scale-95 transition-all">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#E8A020" }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#0f172a" }} />
                     <span className="font-mono font-black text-slate-800 text-xl">{gRepeat}</span>
                     <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 underline">Repet. ↗</span>
                   </button>
@@ -1725,13 +1857,13 @@ export default function App() {
                 <div className="flex gap-2 mt-2.5">
                   <button onClick={startIntercambio}
                     className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white active:scale-95 transition-all"
-                    style={{ backgroundColor: "#5BAF48" }}>
+                    style={{ backgroundColor: "#0f172a" }}>
                     Intercambio
                   </button>
                   <button onClick={startSobres}
                     className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white active:scale-95 transition-all"
-                    style={{ backgroundColor: "#3D8B30" }}>
-                    Abrir Sobres
+                    style={{ backgroundColor: "#374151" }}>
+                    <span className="bounce-icon">⚽</span> Abrir Sobres
                   </button>
                 </div>
               </div>
@@ -1743,7 +1875,7 @@ export default function App() {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <div className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px]">
-                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#2E5FA3" }}>{gHave}</p>
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#0f172a" }}>{gHave}</p>
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">Tengo</p>
                   </div>
                   <button onClick={() => setShowShare("missing")} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
@@ -1751,13 +1883,13 @@ export default function App() {
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold underline">Faltan ↗</p>
                   </button>
                   <button onClick={() => setShowShare("repeat")} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
-                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#E8A020" }}>{gRepeat}</p>
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#0f172a" }}>{gRepeat}</p>
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold underline">Repet. ↗</p>
                   </button>
                   <button onClick={() => setShowGlobalStats(true)} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
-                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#5BAF48" }}>{pct}%</p>
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#0f172a" }}>{pct}%</p>
                     <div className="w-10 h-1 bg-slate-200 rounded-full overflow-hidden mx-auto mt-1">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#5BAF48" }} />
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct === 100 ? "#0f172a" : "#94a3b8" }} />
                     </div>
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold mt-0.5">Total ↗</p>
                   </button>
@@ -1770,13 +1902,13 @@ export default function App() {
                 </div>
                 <button onClick={startIntercambio}
                   className="px-4 py-1.5 rounded-lg font-bold text-sm text-white shrink-0 active:scale-95 transition-all"
-                  style={{ backgroundColor: "#5BAF48" }}>
+                  style={{ backgroundColor: "#0f172a" }}>
                   Intercambio
                 </button>
                 <button onClick={startSobres}
                   className="px-4 py-1.5 rounded-lg font-bold text-sm text-white shrink-0 active:scale-95 transition-all"
-                  style={{ backgroundColor: "#3D8B30" }}>
-                  Abrir Sobres
+                  style={{ backgroundColor: "#374151" }}>
+                  <span className="bounce-icon">⚽</span> Abrir Sobres
                 </button>
               </div>
             </div>

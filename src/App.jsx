@@ -556,7 +556,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-14 h-2 rounded-full overflow-hidden" style={{ backgroundColor: done ? "rgba(255,255,255,0.25)" : "#f1f5f9" }}>
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spct}%`, backgroundColor: done ? "rgba(255,255,255,0.9)" : "#1e293b" }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spct}%`, background: done ? "rgba(255,255,255,0.9)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
             </div>
             <span className={`text-xs w-9 text-right ${done ? "text-white font-bold" : "text-slate-700 font-bold"}`}>
               {c.have}<span className={done ? "text-white/60 font-normal" : "text-slate-400 font-normal"}>/{sec.total}</span>
@@ -679,10 +679,10 @@ export default function App() {
                       </div>
                       {/* ✅ NUEVO: botones Backup, Import, Reset, Borrar */}
                       <div className="flex gap-1.5 shrink-0">
-                        <button onClick={() => handleExportBackup(a.id, a.name)} className="bg-emerald-50 text-emerald-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">⬇ Backup</button>
-                        <button onClick={() => triggerBase64Popup(a.id)} className="bg-blue-50 text-blue-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">⚡ Import</button>
-                        <button onClick={() => handleResetAlbum(a.id, a.name)} className="bg-amber-50 text-amber-700 font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg">↺ Reset</button>
-                        <button onClick={() => handleDeleteAlbum(a.id, a.name)} className="bg-red-50 text-red-600 font-bold text-[10px] px-2.5 py-1.5 rounded-lg">🗑️</button>
+                        <button onClick={() => handleExportBackup(a.id, a.name)} className="text-white font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg" style={{background:"linear-gradient(135deg,#237661,#5BAF48)"}}>⬇ Backup</button>
+                        <button onClick={() => triggerBase64Popup(a.id)} className="text-white font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg" style={{background:"linear-gradient(135deg,#1a3a8f,#4A90D9)"}}>⚡ Import</button>
+                        <button onClick={() => handleResetAlbum(a.id, a.name)} className="text-white font-bold text-[10px] uppercase px-2.5 py-1.5 rounded-lg" style={{background:"linear-gradient(135deg,#C8780A,#F5A623)"}}>↺ Reset</button>
+                        <button onClick={() => handleDeleteAlbum(a.id, a.name)} className="text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg" style={{background:"linear-gradient(135deg,#8B0000,#CC1010)"}}>🗑️</button>
                       </div>
                     </div>
                   );
@@ -769,7 +769,7 @@ export default function App() {
                           <p className="text-xs font-bold text-slate-700 truncate">{sec.name}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
-                              <div className="h-full rounded-full" style={{width:`${pctSec}%`, backgroundColor:'#1e293b'}}/>
+                              <div className="h-full rounded-full" style={{width:`${pctSec}%`, background:'linear-gradient(90deg,#237661,#9ABD66)'}}/>
                             </div>
                             <span className="text-[9px] text-slate-400 tabular-nums">{have}/{sec.total}</span>
                           </div>
@@ -880,8 +880,7 @@ export default function App() {
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-slate-900 placeholder-slate-300"
                     />
                     <button onClick={() => setShowSobresExplorer(true)}
-                      className="bg-slate-900 text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap">
-                      🔍 Explorar
+                      className="text-white font-bold px-4 rounded-xl text-sm active:scale-95 whitespace-nowrap" style={{background:"linear-gradient(135deg,#1a3a8f,#4A90D9)"}}>\n                      🔍 Explorar
                     </button>
                   </div>
                   {/* Contadores en tiempo real */}
@@ -1030,7 +1029,7 @@ export default function App() {
                                     <div className="text-right shrink-0">
                                       <p className="text-xs font-bold" style={{ color: done ? "rgba(255,255,255,0.9)" : "#64748b" }}>{have}/20</p>
                                       <div className="w-10 h-1 rounded-full overflow-hidden mt-1" style={{ backgroundColor: done ? "rgba(255,255,255,0.3)" : "#e2e8f0" }}>
-                                        <div className="h-full rounded-full" style={{ width: `${(have/20)*100}%`, backgroundColor: done ? "rgba(255,255,255,0.9)" : "#1e293b" }}/>
+                                        <div className="h-full rounded-full" style={{ width: `${(have/20)*100}%`, background: done ? "rgba(255,255,255,0.9)" : "linear-gradient(90deg,#237661,#9ABD66)" }}/>
                                       </div>
                                     </div>
                                   </button>
@@ -1091,8 +1090,8 @@ export default function App() {
                   </div>
                   <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
                     <button onClick={() => setSobresStep('scan')} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">← Editar</button>
-                    <button onClick={confirmSobres} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">
-                      ✓ Guardar {total} láminas
+                    <button onClick={confirmSobres} className="flex-1 py-3 text-white rounded-xl font-bold text-sm active:scale-95 transition-all" style={{background:"linear-gradient(135deg,#237661,#5BAF48)"}}>
+                    ✓ Guardar {total} láminas
                     </button>
                   </div>
                 </>
@@ -1409,8 +1408,8 @@ export default function App() {
                   <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 flex gap-2">
                     <button onClick={() => setIntercambioStep(2)} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm">←</button>
                     <button onClick={confirmIntercambio}
-                      className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm active:scale-95 transition-all">
-                      ✓ Confirmar intercambio
+                      className="flex-1 py-3 text-white rounded-xl font-bold text-sm active:scale-95 transition-all" style={{background:"linear-gradient(135deg,#237661,#5BAF48)"}}>
+                    ✓ Confirmar intercambio
                     </button>
                   </div>
                 </>
@@ -1573,7 +1572,7 @@ export default function App() {
                 {/* ✅ CAMBIO: barra h-3 más gruesa */}
                 <div className="h-3 rounded-full overflow-hidden mb-3" style={{backgroundColor:"#f1f5f9"}}>
                   <div className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${spct}%`, backgroundColor: spct === 100 ? "#0f172a" : "#94a3b8" }} />
+                    style={{ width: `${spct}%`, background: spct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
                 </div>
                 <div className="flex gap-1">
                   {[["all","Todas"],["have","Tengo"],["missing","Faltan"],["repeat","Repet."]].map(([k,l]) => (
@@ -1725,7 +1724,7 @@ export default function App() {
                         </div>
                         <div className="h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
                           <div className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${gpct}%`, backgroundColor: gpct === 100 ? "#0f172a" : gpct >= 75 ? "#1e293b" : gpct >= 50 ? "#1e293b" : "#f1f5f9" }}/>
+                            style={{ width: `${gpct}%`, background: gpct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }}/>
                         </div>
                       </div>
                     ));
@@ -1751,7 +1750,7 @@ export default function App() {
                           <span className="text-base">{sec.flag}</span>
                           <span className="text-xs font-bold text-slate-700 font-mono flex-1">{sec.code}</span>
                           <div className="w-24 h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
-                            <div className="h-full rounded-full" style={{ width: `${sec.pct}%`, backgroundColor: sec.pct === 100 ? "#0f172a" : "#94a3b8" }}/>
+                            <div className="h-full rounded-full" style={{ width: `${sec.pct}%`, background: sec.pct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }}/>
                           </div>
                           <span className="text-xs font-bold text-slate-600 tabular-nums w-8 text-right">{sec.pct}%</span>
                         </div>
@@ -1832,7 +1831,7 @@ export default function App() {
                   </button>
                 </div>
                 <div className="h-2 rounded-full overflow-hidden mb-4" style={{backgroundColor:"#f1f5f9"}}>
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: pct === 100 ? "#0f172a" : "#94a3b8" }} />
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: pct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
                 </div>
                 <div className="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-2xl px-2 py-2 mb-3.5">
                   <div className="flex-1 flex items-center justify-center gap-1.5 py-1">
@@ -1867,7 +1866,7 @@ export default function App() {
                   </button>
                   <button onClick={startSobres}
                     className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white active:scale-95 transition-all"
-                    style={{ backgroundColor: "#374151" }}>
+                    style={{ background: "linear-gradient(135deg,#1a3a8f,#4A90D9)" }}>
                     <span className="bounce-icon">⚽</span> Abrir Sobres
                   </button>
                 </div>
@@ -1894,7 +1893,7 @@ export default function App() {
                   <button onClick={() => setShowGlobalStats(true)} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
                     <p className="text-lg font-extrabold tabular-nums" style={{ color: "#0f172a" }}>{pct}%</p>
                     <div className="w-10 h-1 bg-slate-200 rounded-full overflow-hidden mx-auto mt-1">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct === 100 ? "#0f172a" : "#94a3b8" }} />
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
                     </div>
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold mt-0.5">Total ↗</p>
                   </button>
@@ -1912,7 +1911,7 @@ export default function App() {
                 </button>
                 <button onClick={startSobres}
                   className="px-4 py-1.5 rounded-lg font-bold text-sm text-white shrink-0 active:scale-95 transition-all"
-                  style={{ backgroundColor: "#374151" }}>
+                  style={{ background: "linear-gradient(135deg,#1a3a8f,#4A90D9)" }}>
                   <span className="bounce-icon">⚽</span> Abrir Sobres
                 </button>
               </div>

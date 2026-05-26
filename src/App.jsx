@@ -340,13 +340,13 @@ export default function App() {
   };
 
   const triggerSectionToasts = (oldStates, newStates) => {
+    const completed = [];
     for (const sec of SECTIONS) {
       const stickers = ALL.filter(s => s.section === sec.code);
       const wasComplete = stickers.every(s => (oldStates[s.id] ?? 0) >= 1);
       const nowComplete = stickers.every(s => (newStates[s.id] ?? 0) >= 1);
       if (!wasComplete && nowComplete) {
-        setSectionComplete({ code: sec.code, name: sec.name, flag: sec.flag });
-        setTimeout(() => setSectionComplete(null), 3200);
+        completed.push(sec);
         const now = new Date().toISOString();
         setAchievements(prev => ({ ...prev, [sec.code]: now }));
         if (activeAlbumId) {
@@ -354,9 +354,15 @@ export default function App() {
             .upsert({ album_id: activeAlbumId, section_code: sec.code, completed_at: now }, { onConflict: 'album_id,section_code' })
             .then(() => {});
         }
-        break;
       }
     }
+    // Mostrar toasts en secuencia — 3.5s de diferencia entre cada uno
+    completed.forEach((sec, i) => {
+      setTimeout(() => {
+        setSectionComplete({ code: sec.code, name: sec.name, flag: sec.flag });
+        setTimeout(() => setSectionComplete(null), 3200);
+      }, i * 3600);
+    });
   };
 
   const toggle = useCallback(async (id) => {
@@ -555,7 +561,7 @@ export default function App() {
             <p className={`text-[11px] truncate leading-tight ${done ? "text-white/80" : "text-slate-600"}`}>{sec.name}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-14 h-2 rounded-full overflow-hidden" style={{ backgroundColor: done ? "rgba(255,255,255,0.25)" : "#f1f5f9" }}>
+            <div className="w-14 h-2 rounded-full overflow-hidden progress-track" style={{ backgroundColor: done ? "rgba(255,255,255,0.25)" : undefined }}>
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${spct}%`, background: done ? "rgba(255,255,255,0.9)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
             </div>
             <span className={`text-xs w-9 text-right ${done ? "text-white font-bold" : "text-slate-700 font-bold"}`}>
@@ -769,7 +775,7 @@ export default function App() {
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-700 truncate">{sec.name}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
+                            <div className="flex-1 h-1.5 rounded-full overflow-hidden progress-track">
                               <div className="h-full rounded-full" style={{width:`${pctSec}%`, background:'linear-gradient(90deg,#237661,#9ABD66)'}}/>
                             </div>
                             <span className="text-[9px] text-slate-400 tabular-nums">{have}/{sec.total}</span>
@@ -801,9 +807,9 @@ export default function App() {
                 zIndex:201,
               }}/>
             ))}
-            <div style={{background:'white',borderRadius:'28px',padding:'28px',width:'100%',maxWidth:'360px',textAlign:'center',position:'relative',zIndex:10,boxShadow:'0 25px 60px rgba(0,0,0,0.6)'}}>
+            <div style={{background:'var(--modal-bg, white)',borderRadius:'28px',padding:'28px',width:'100%',maxWidth:'360px',textAlign:'center',position:'relative',zIndex:10,boxShadow:'0 25px 60px rgba(0,0,0,0.6)'}}>
               <div style={{fontSize:'64px',marginBottom:'8px'}}>🏆</div>
-              <h2 style={{fontSize:'24px',fontWeight:900,color:'#0f172a',margin:'0 0 4px'}}>¡Álbum Completo!</h2>
+              <h2 style={{fontSize:'24px',fontWeight:900,color:'var(--modal-text, #0f172a)',margin:'0 0 4px'}}>¡Álbum Completo!</h2>
               <p style={{fontSize:'13px',color:'#94a3b8',margin:'0 0 20px'}}>FIFA World Cup 2026 · 994/994 láminas</p>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'20px'}}>
                 <div style={{backgroundColor:'#0f172a',borderRadius:'14px',padding:'14px 8px'}}>
@@ -1024,12 +1030,12 @@ export default function App() {
                                     style={{ background: done ? "linear-gradient(135deg,#237661,#5BAF48)" : "#f8fafc", borderColor: done ? "transparent" : "#e2e8f0" }}>
                                     <span className="text-xl">{t.flag}</span>
                                     <div className="text-left flex-1 min-w-0">
-                                      <p className="text-sm font-black truncate" style={{ color: done ? "white" : "#0f172a" }}>{t.name}</p>
+                                      <p className="text-sm font-black truncate" style={{ color: done ? "white" : undefined }}>{t.name}</p>
                                       <p className="text-xs font-mono" style={{ color: done ? "rgba(255,255,255,0.7)" : "#94a3b8" }}>{t.code}</p>
                                     </div>
                                     <div className="text-right shrink-0">
                                       <p className="text-xs font-bold" style={{ color: done ? "rgba(255,255,255,0.9)" : "#64748b" }}>{have}/20</p>
-                                      <div className="w-10 h-1 rounded-full overflow-hidden mt-1" style={{ backgroundColor: done ? "rgba(255,255,255,0.3)" : "#e2e8f0" }}>
+                                      <div className="w-10 h-1 rounded-full overflow-hidden mt-1 progress-track" style={{ backgroundColor: done ? "rgba(255,255,255,0.3)" : undefined }}>
                                         <div className="h-full rounded-full" style={{ width: `${(have/20)*100}%`, background: done ? "rgba(255,255,255,0.9)" : "linear-gradient(90deg,#237661,#9ABD66)" }}/>
                                       </div>
                                     </div>
@@ -1373,7 +1379,7 @@ export default function App() {
                         <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold mt-1">Entregas</p>
                       </div>
                       <div className="bg-white border border-slate-200 rounded-2xl p-4 text-center shadow-sm">
-                        <p className="text-3xl font-black" style={{ color: "#0f172a" }}>{totalReceive}</p>
+                        <p className="text-3xl font-black" style={{ color: "#237661" }}>{totalReceive}</p>
                         <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold mt-1">Recibes</p>
                       </div>
                     </div>
@@ -1451,12 +1457,12 @@ export default function App() {
                                 style={{background:done?'linear-gradient(135deg,#237661,#5BAF48)':'#f8fafc',borderColor:done?'transparent':'#e2e8f0'}}>
                                 <span className="text-xl">{t.flag}</span>
                                 <div className="text-left flex-1 min-w-0">
-                                  <p className="text-sm font-black truncate" style={{color:done?'#ffffff':'#0f172a'}}>{t.name}</p>
+                                  <p className="text-sm font-black truncate" style={{color:done?'#ffffff':undefined}}>{t.name}</p>
                                   <p className="text-xs font-mono" style={{color:done?'rgba(26,20,0,0.6)':'#94a3b8'}}>{t.code}</p>
                                 </div>
                                 <div className="text-right shrink-0">
                                   <p className="text-xs font-bold" style={{color:done?'#ffffff':'#64748b'}}>{have}/20</p>
-                                  <div className="w-10 h-1 rounded-full overflow-hidden mt-1" style={{backgroundColor:done?'rgba(255,255,255,0.2)':'#f1f5f9'}}>
+                                  <div className="w-10 h-1 rounded-full overflow-hidden mt-1 progress-track" style={{backgroundColor:done?'rgba(255,255,255,0.2)':undefined}}>
                                     <div className="h-full rounded-full" style={{width:`${(have/20)*100}%`,backgroundColor:done?'rgba(255,255,255,0.9)':'#1e293b'}}/>
                                   </div>
                                 </div>
@@ -1571,7 +1577,7 @@ export default function App() {
                   </div>
                 </div>
                 {/* ✅ CAMBIO: barra h-3 más gruesa */}
-                <div className="h-3 rounded-full overflow-hidden mb-3" style={{backgroundColor:"#f1f5f9"}}>
+                <div className="h-3 rounded-full overflow-hidden mb-3 progress-track">
                   <div className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${spct}%`, background: spct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
                 </div>
@@ -1723,7 +1729,7 @@ export default function App() {
                           <span className="text-xs font-bold text-slate-700">Grupo {grp}</span>
                           <span className="text-xs font-bold text-slate-500 tabular-nums">{have}/{total} <span className="text-slate-400 font-normal">({gpct}%)</span></span>
                         </div>
-                        <div className="h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
+                        <div className="h-2 rounded-full overflow-hidden progress-track">
                           <div className="h-full rounded-full transition-all duration-500"
                             style={{ width: `${gpct}%`, background: gpct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }}/>
                         </div>
@@ -1750,7 +1756,7 @@ export default function App() {
                           <span className="text-[10px] font-black text-slate-400 w-4">{i+1}</span>
                           <span className="text-base">{sec.flag}</span>
                           <span className="text-xs font-bold text-slate-700 font-mono flex-1">{sec.code}</span>
-                          <div className="w-24 h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
+                          <div className="w-24 h-2 rounded-full overflow-hidden progress-track">
                             <div className="h-full rounded-full" style={{ width: `${sec.pct}%`, background: sec.pct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }}/>
                           </div>
                           <span className="text-xs font-bold text-slate-600 tabular-nums w-8 text-right">{sec.pct}%</span>
@@ -1774,7 +1780,7 @@ export default function App() {
                           <span className="text-[10px] font-black text-slate-400 w-4">{i+1}</span>
                           <span className="text-base">{sec.flag}</span>
                           <span className="text-xs font-bold text-slate-700 font-mono flex-1">{sec.code}</span>
-                          <div className="w-24 h-2 rounded-full overflow-hidden" style={{backgroundColor:"#f1f5f9"}}>
+                          <div className="w-24 h-2 rounded-full overflow-hidden progress-track">
                             <div className="h-full rounded-full bg-slate-300" style={{ width: `${sec.pct}%` }}/>
                           </div>
                           <span className="text-xs font-bold text-slate-400 tabular-nums w-8 text-right">{sec.pct}%</span>
@@ -1831,7 +1837,7 @@ export default function App() {
                     <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400 -mt-1">Completado ↗</p>
                   </button>
                 </div>
-                <div className="h-2 rounded-full overflow-hidden mb-4" style={{backgroundColor:"#f1f5f9"}}>
+                <div className="h-2 rounded-full overflow-hidden mb-4 progress-track" style={{backgroundColor:undefined}}>
                   <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: pct === 100 ? "linear-gradient(135deg,#237661,#5BAF48)" : "linear-gradient(90deg,#237661,#9ABD66)" }} />
                 </div>
                 <div className="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-2xl px-2 py-2 mb-3.5">
@@ -1862,7 +1868,7 @@ export default function App() {
                 <div className="flex gap-2 mt-2.5">
                   <button onClick={startIntercambio}
                     className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white active:scale-95 transition-all"
-                    style={{ backgroundColor: "#0f172a" }}>
+                    style={{ background: "linear-gradient(135deg,#C8780A,#F5A623)" }}>
                     Intercambio
                   </button>
                   <button onClick={startSobres}
@@ -1880,7 +1886,7 @@ export default function App() {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <div className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px]">
-                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#0f172a" }}>{gHave}</p>
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#237661" }}>{gHave}</p>
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">Tengo</p>
                   </div>
                   <button onClick={() => setShowShare("missing")} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
@@ -1888,7 +1894,7 @@ export default function App() {
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold underline">Faltan ↗</p>
                   </button>
                   <button onClick={() => setShowShare("repeat")} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
-                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#0f172a" }}>{gRepeat}</p>
+                    <p className="text-lg font-extrabold tabular-nums" style={{ color: "#E26502" }}>{gRepeat}</p>
                     <p className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold underline">Repet. ↗</p>
                   </button>
                   <button onClick={() => setShowGlobalStats(true)} className="px-3 py-1.5 text-center bg-slate-50 rounded-lg border border-slate-200 min-w-[72px] active:opacity-70">
@@ -1907,7 +1913,7 @@ export default function App() {
                 </div>
                 <button onClick={startIntercambio}
                   className="px-4 py-1.5 rounded-lg font-bold text-sm text-white shrink-0 active:scale-95 transition-all"
-                  style={{ backgroundColor: "#0f172a" }}>
+                  style={{ background: "linear-gradient(135deg,#C8780A,#F5A623)" }}>
                   Intercambio
                 </button>
                 <button onClick={startSobres}
